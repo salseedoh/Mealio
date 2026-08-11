@@ -77,6 +77,27 @@ const { data: items } = await sb
   .select('*')
   .eq('active', true)
   .order('sort_order');
+
+const sections = stores.map(store => ({
+  name: store.name,
+  items: items
+    .filter(item => item.store_id === store.id)
+    .map(item => {
+      if (item.parent_id) return null;
+
+      const children = items
+        .filter(child => child.parent_id === item.id)
+        .map(child => child.name);
+
+      return children.length
+        ? {
+            name: item.name,
+            children
+          }
+        : item.name;
+    })
+    .filter(Boolean)
+}));
   extra.innerHTML=`<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head"><div><p class="eyebrow">MASTER SHOPPING LIST</p><h2>Grocery Checklist</h2><p>Items stay unchecked until you select them or add a recipe.</p></div><button class="master-clear" id="master-clear">Clear all checks</button></div><ul class="master-list" id="master-list"></ul></section>`;
   const checked=new Set(), list=document.querySelector('#master-list');
   const key=(parent,name)=>parent?`${parent} / ${name}`:name;
