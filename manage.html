@@ -32,6 +32,21 @@ async function deleteRecipe(r){if(!confirm(`Delete recipe "${r.title}" and all o
 function openModal(){modal.classList.add('open');wireDynamic()}function closeModal(){modal.classList.remove('open')}window.closeModal=closeModal;modal.onclick=e=>{if(e.target===modal)closeModal()};
 $('#addGrocery').onclick=()=>groceryEditor();$('#addRecipe').onclick=()=>recipeEditor();$('#tabGroceries').onclick=()=>{groceries.classList.remove('hidden');recipesSec.classList.add('hidden');tabGroceries.classList.add('active');tabRecipes.classList.remove('active')};$('#tabRecipes').onclick=()=>{groceries.classList.add('hidden');recipesSec.classList.remove('hidden');tabRecipes.classList.add('active');tabGroceries.classList.remove('active')};const groceries=$('#groceries'),recipesSec=$('#recipes'),tabGroceries=$('#tabGroceries'),tabRecipes=$('#tabRecipes');$('#back').onclick=()=>location.href='./';
 $('#loginForm').onsubmit=async e=>{e.preventDefault();$('#loginError').textContent='Signing in…';const q=await sb.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});if(q.error){$('#loginError').textContent=q.error.message;return}session=q.data.session;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');try{await load()}catch(err){$('#loginError').textContent=err.message}};
-(async()=>{const q=await sb.auth.getSession();if(q.data.session){session=q.data.session;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');try{await load()}catch(err){$('#app').innerHTML='<p>'+esc(err.message)+'</p>'}}})();
+(async()=>{
+  const q = await sb.auth.getSession();
+
+  if(q.data.session){
+    session = q.data.session;
+    $('#login').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+
+    try {
+      await load();
+    } catch(err) {
+      $('#app').innerHTML='<p>'+esc(err.message)+'</p>';
+    }
+  } else {
+    window.location.href = "index.html";
+  }
 })();
 </script></body></html>
