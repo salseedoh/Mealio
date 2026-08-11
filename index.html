@@ -58,7 +58,7 @@
       async function loadDatabase(){
         const results=await Promise.all([
           supabase.from('grocery_stores').select('id,name,sort_order').eq('user_id',session.user.id).order('sort_order'),
-          supabase.from('grocery_items').select('id,store_id,name,parent_id,sort_order,active').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
+          supabase.from('grocery_items').select('id,store_id,name,parent_id,sort_order,active,section_name').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
           supabase.from('recipes').select('id,title,type,time,description,emoji,sort_order,active').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
           supabase.from('recipe_groups').select('id,recipe_id,name,sort_order').order('sort_order'),
           supabase.from('recipe_ingredients').select('id,recipe_id,group_id,grocery_item_id,quantity,ingredient_text,sort_order').order('sort_order'),
@@ -68,7 +68,7 @@
         results.forEach(result=>{if(result.error) throw result.error;});
         const stores=results[0].data||[]; groceryItems=results[1].data||[]; itemById=new Map(groceryItems.map(item=>[item.id,item]));
         const storeById=new Map(stores.map(store=>[store.id,store.name])); itemByPath=new Map();
-        const pathFor=item=>{const parts=[storeById.get(item.store_id)||''];const parents=[];let current=item;while(current?.parent_id){current=itemById.get(current.parent_id);if(!current)break;parents.unshift(current.name);}parts.push(...parents,item.name);return parts.filter(Boolean).join(' / ');};
+        const pathFor=item=>{const parts=[storeById.get(item.store_id)||''];const parents=[];let current=item;while(current?.parent_id){current=itemById.get(current.parent_id);if(!current)break;parents.unshift(current.name);}if(item.section_name)parts.push(item.section_name);parts.push(...parents,item.name);return parts.filter(Boolean).join(' / ');};
         groceryItems.forEach(item=>itemByPath.set(pathFor(item),item.id));
         const groups=results[3].data||[],ingredients=results[4].data||[],steps=results[5].data||[],groupsByRecipe=new Map();
         groups.forEach(group=>{if(!groupsByRecipe.has(group.recipe_id))groupsByRecipe.set(group.recipe_id,[]);groupsByRecipe.get(group.recipe_id).push({...group,ingredients:ingredients.filter(i=>i.group_id===group.id)});});
@@ -79,10 +79,22 @@
       function buildMasterList(doc){
         const list=doc.querySelector('#master-list'); if(!list)return;
         const children=new Map(); groceryItems.forEach(item=>{if(!children.has(item.parent_id||0))children.set(item.parent_id||0,[]);children.get(item.parent_id||0).push(item);});
-        const storeNames=new Map(); groceryItems.forEach(item=>{const path=[...itemByPath.entries()].find(([,id])=>id===item.id)?.[0]||'';storeNames.set(item.store_id,path.split(' / ')[0]);});
+        const storeNames=new Map(); groceryItems.forEach(item=>{const storeName=itemByPath.get([...itemByPath.keys()].find(path=>itemByPath.get(path)===item.id))?.split(' / ')[0];if(storeName)storeNames.set(item.store_id,storeName);});
         const row=item=>{const li=doc.createElement('li'),label=doc.createElement('label'),input=doc.createElement('input'),span=doc.createElement('span');input.type='checkbox';input.dataset.dbId=item.id;input.dataset.id=[...itemByPath.entries()].find(([,id])=>id===item.id)?.[0]||String(item.id);input.checked=checklist.has(item.id);span.textContent=item.name;label.append(input,span);li.append(label);if(input.checked)li.classList.add('checked');input.addEventListener('change',()=>setChecked(item.id,input.checked));const nested=(children.get(item.id)||[]).sort((a,b)=>a.sort_order-b.sort_order);if(nested.length){const ul=doc.createElement('ul');ul.className='master-children';nested.forEach(child=>ul.append(row(child)));li.append(ul);}return li;};
         list.innerHTML=''; const stores=new Map(); groceryItems.forEach(item=>{if(!stores.has(item.store_id))stores.set(item.store_id,[]);stores.get(item.store_id).push(item);});
-        [...stores.keys()].sort((a,b)=>{const an=storeNames.get(a)||'',bn=storeNames.get(b)||'',order={Walmart:0,Costco:1};return(order[an]??99)-(order[bn]??99)||an.localeCompare(bn);}).forEach(storeId=>{const title=doc.createElement('li');title.className='master-section';title.textContent=storeNames.get(storeId)||'Store';list.append(title);(children.get(0)||[]).filter(item=>item.store_id===storeId).sort((a,b)=>a.sort_order-b.sort_order).forEach(item=>list.append(row(item)));});
+        [...stores.keys()].sort((a,b)=>{const an=storeNames.get(a)||'',bn=storeNames.get(b)||'',order={Walmart:0,Costco:1};return(order[an]??99)-(order[bn]??99)||an.localeCompare(bn);}).forEach(storeId=>{
+          const title=doc.createElement('li');title.className='master-section';title.textContent=storeNames.get(storeId)||'Store';list.append(title);
+          const storeItems=(children.get(0)||[]).filter(item=>item.store_id===storeId).sort((a,b)=>a.sort_order-b.sort_order);
+          let currentSection=null;
+          storeItems.forEach(item=>{
+            const section=item.section_name||null;
+            if(section!==currentSection){
+              if(section){const sectionTitle=doc.createElement('li');sectionTitle.className='master-subsection';sectionTitle.textContent=section;list.append(sectionTitle);}
+              currentSection=section;
+            }
+            list.append(row(item));
+          });
+        });
       }
       async function setChecked(itemId,checked){
         if(checked)checklist.add(itemId);else checklist.delete(itemId);
