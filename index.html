@@ -10,34 +10,109 @@
   <title>Gather — Recipes & Grocery Checklist</title>
   <style>
     *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:#f8f5ee}body{overflow:hidden}iframe{border:0;width:100%;height:100%;display:block;background:#f8f5ee}
+    #gather-auth{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:#f8f5ee;color:#202521;font-family:Arial,sans-serif}
+    #gather-auth[hidden]{display:none}
+    #gather-auth-card{width:min(380px,calc(100vw - 32px));background:#fffdf8;border:1px solid #e5e1d8;padding:28px;box-shadow:0 20px 70px #0002}
+    #gather-auth-card h1{font-family:Georgia,serif;font-size:36px;line-height:1;margin:0 0 8px}
+    #gather-auth-card h1 em{color:#e36331}
+    #gather-auth-card p{color:#70756f;font-size:13px;line-height:1.5}
+    #gather-auth-card label{display:block;font-size:11px;margin:16px 0 6px;color:#46604c}
+    #gather-auth-card input{width:100%;padding:11px;border:1px solid #dcd9d0;background:white;font-size:14px}
+    #gather-auth-card button{margin-top:18px;width:100%;border:0;background:#202521;color:white;padding:12px;font-weight:600;cursor:pointer}
+    #gather-auth-status{min-height:18px;color:#b33;font-size:12px;margin-top:10px}
   </style>
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
-  <!-- Keep this file in the same folder as google-sites-recipe-embed.html when hosting. -->
-  <iframe id="app" title="Gather recipes and grocery checklist" src="google-sites-recipe-embed.html"></iframe>
+  <div id="gather-auth" hidden>
+    <form id="gather-auth-card">
+      <h1>Good food,<br><em>gathered here.</em></h1>
+      <p>Sign in to access your synchronized grocery list and recipes.</p>
+      <label for="gather-email">Email</label>
+      <input id="gather-email" type="email" autocomplete="email" required>
+      <label for="gather-password">Password</label>
+      <input id="gather-password" type="password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+      <div id="gather-auth-status" aria-live="polite"></div>
+    </form>
+  </div>
+  <iframe id="app" title="Gather recipes and grocery checklist" src="grocery.html"></iframe>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     (() => {
-      const storageKey = 'gather-grocery-checks-v1';
+      const SUPABASE_URL = 'https://bxqzzilkfdkndbwzavsi.supabase.co';
+      const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_6HU9u-7fO5PsfjEhcOnDFg_rKswZ-7i';
+      const { createClient } = window.supabase;
+      const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
       const app = document.querySelector('#app');
-      const save = () => {
-        try {
-          const checks = [...app.contentDocument.querySelectorAll('#master-list input:checked')].map(input => input.dataset.id);
-          localStorage.setItem(storageKey, JSON.stringify(checks));
-        } catch (_) {}
-      };
-      app.addEventListener('load', () => {
-        try {
-          const doc = app.contentDocument;
-          const saved = new Set(JSON.parse(localStorage.getItem(storageKey) || '[]'));
-          saved.forEach(id => {
-            const input = [...doc.querySelectorAll('#master-list input')].find(item => item.dataset.id === id);
-            if (input && !input.checked) { input.checked = true; input.dispatchEvent(new Event('change', { bubbles: true })); }
+      const auth = document.querySelector('#gather-auth');
+      const authForm = document.querySelector('#gather-auth-card');
+      const authStatus = document.querySelector('#gather-auth-status');
+      let session = null, groceryItems = [], recipes = [], checklist = new Set(), recipeByTitle = new Map(), itemById = new Map(), itemByPath = new Map();
+      const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      function frameDoc(){ return app.contentDocument; }
+      function showAuth(message=''){ auth.hidden=false; authStatus.textContent=message; }
+      function hideAuth(){ auth.hidden=true; authStatus.textContent=''; }
+      async function signIn(email,password){ const {data,error}=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; session=data.session; hideAuth(); await syncApp(); }
+      authForm.addEventListener('submit',async event=>{ event.preventDefault(); authStatus.textContent='Signing in…'; try{ await signIn(document.querySelector('#gather-email').value.trim(),document.querySelector('#gather-password').value); }catch(error){ authStatus.textContent=error.message||'Unable to sign in.'; } });
+      async function loadDatabase(){
+        const results=await Promise.all([
+          supabase.from('grocery_stores').select('id,name,sort_order').eq('user_id',session.user.id).order('sort_order'),
+          supabase.from('grocery_items').select('id,store_id,name,parent_id,sort_order,active,section_name').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
+          supabase.from('recipes').select('id,title,type,time,description,emoji,sort_order,active').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
+          supabase.from('recipe_groups').select('id,recipe_id,name,sort_order').order('sort_order'),
+          supabase.from('recipe_ingredients').select('id,recipe_id,group_id,grocery_item_id,quantity,ingredient_text,sort_order').order('sort_order'),
+          supabase.from('recipe_steps').select('id,recipe_id,step_number,instruction').order('step_number'),
+          supabase.from('grocery_checklist').select('grocery_item_id,checked').eq('user_id',session.user.id)
+        ]);
+        results.forEach(result=>{if(result.error) throw result.error;});
+        const stores=results[0].data||[]; groceryItems=results[1].data||[]; itemById=new Map(groceryItems.map(item=>[item.id,item]));
+        const storeById=new Map(stores.map(store=>[store.id,store.name])); itemByPath=new Map();
+        const pathFor=item=>{const parts=[storeById.get(item.store_id)||''];const parents=[];let current=item;while(current?.parent_id){current=itemById.get(current.parent_id);if(!current)break;parents.unshift(current.name);}if(item.section_name)parts.push(item.section_name);parts.push(...parents,item.name);return parts.filter(Boolean).join(' / ');};
+        groceryItems.forEach(item=>itemByPath.set(pathFor(item),item.id));
+        const groups=results[3].data||[],ingredients=results[4].data||[],steps=results[5].data||[],groupsByRecipe=new Map();
+        groups.forEach(group=>{if(!groupsByRecipe.has(group.recipe_id))groupsByRecipe.set(group.recipe_id,[]);groupsByRecipe.get(group.recipe_id).push({...group,ingredients:ingredients.filter(i=>i.group_id===group.id)});});
+        recipes=(results[2].data||[]).map(recipe=>({...recipe,groups:(groupsByRecipe.get(recipe.id)||[]).sort((a,b)=>a.sort_order-b.sort_order),steps:steps.filter(step=>step.recipe_id===recipe.id).sort((a,b)=>a.step_number-b.step_number)}));
+        recipeByTitle=new Map(recipes.map(recipe=>[recipe.title,recipe]));
+        checklist=new Set((results[6].data||[]).filter(row=>row.checked).map(row=>row.grocery_item_id));
+      }
+      function buildMasterList(doc){
+        const list=doc.querySelector('#master-list'); if(!list)return;
+        const children=new Map(); groceryItems.forEach(item=>{if(!children.has(item.parent_id||0))children.set(item.parent_id||0,[]);children.get(item.parent_id||0).push(item);});
+        const storeNames=new Map(); groceryItems.forEach(item=>{const path=[...itemByPath.entries()].find(([,id])=>id===item.id)?.[0];const storeName=path?.split(' / ')[0];if(storeName)storeNames.set(item.store_id,storeName);});
+        const row=item=>{const li=doc.createElement('li'),label=doc.createElement('label'),input=doc.createElement('input'),span=doc.createElement('span');input.type='checkbox';input.dataset.dbId=item.id;input.dataset.id=[...itemByPath.entries()].find(([,id])=>id===item.id)?.[0]||String(item.id);input.checked=checklist.has(item.id);span.textContent=item.name;label.append(input,span);li.append(label);if(input.checked)li.classList.add('checked');input.addEventListener('change',()=>setChecked(item.id,input.checked));const nested=(children.get(item.id)||[]).sort((a,b)=>a.sort_order-b.sort_order);if(nested.length){const ul=doc.createElement('ul');ul.className='master-children';nested.forEach(child=>ul.append(row(child)));li.append(ul);}return li;};
+        list.innerHTML=''; const stores=new Map(); groceryItems.forEach(item=>{if(!stores.has(item.store_id))stores.set(item.store_id,[]);stores.get(item.store_id).push(item);});
+        [...stores.keys()].sort((a,b)=>{const an=storeNames.get(a)||'',bn=storeNames.get(b)||'',order={Walmart:0,Costco:1};return(order[an]??99)-(order[bn]??99)||an.localeCompare(bn);}).forEach(storeId=>{
+          const title=doc.createElement('li');title.className='master-section';title.textContent=storeNames.get(storeId)||'Store';list.append(title);
+          const storeItems=(children.get(0)||[]).filter(item=>item.store_id===storeId).sort((a,b)=>a.sort_order-b.sort_order);
+          let currentSection=null;
+          storeItems.forEach(item=>{
+            const section=item.section_name||null;
+            if(section!==currentSection){
+              if(section){const sectionTitle=doc.createElement('li');sectionTitle.className='master-subsection';sectionTitle.textContent=section;list.append(sectionTitle);}
+              currentSection=section;
+            }
+            list.append(row(item));
           });
-          doc.addEventListener('change', event => { if (event.target.matches('#master-list input')) setTimeout(save, 0); });
-          doc.addEventListener('click', event => { if (event.target.closest('.add, #master-clear')) setTimeout(save, 0); });
-        } catch (_) {}
-      });
+        });
+      }
+      async function setChecked(itemId,checked){
+        if(checked)checklist.add(itemId);else checklist.delete(itemId);
+        const result=checked?await supabase.from('grocery_checklist').upsert({user_id:session.user.id,grocery_item_id:itemId,checked:true,updated_at:new Date().toISOString()},{onConflict:'user_id,grocery_item_id'}):await supabase.from('grocery_checklist').delete().eq('user_id',session.user.id).eq('grocery_item_id',itemId);
+        if(result.error)console.error('Checklist sync failed:',result.error); buildMasterList(frameDoc());
+      }
+      async function clearChecks(){const {error}=await supabase.from('grocery_checklist').delete().eq('user_id',session.user.id);if(error){console.error('Clear checklist failed:',error);return;}checklist.clear();buildMasterList(frameDoc());}
+      function renderRecipeData(doc){const cards=[...doc.querySelectorAll('#gr-grid .card')];recipes.forEach((recipe,index)=>{const card=cards[index];if(!card)return;const art=card.querySelector('.art span'),metaType=card.querySelector('.meta b'),metaTime=card.querySelector('.meta span'),title=card.querySelector('h3'),desc=card.querySelector('.desc');if(art)art.textContent=recipe.emoji||'🍽️';if(metaType)metaType.textContent=(recipe.type||'').toUpperCase();if(metaTime)metaTime.textContent=recipe.time||'';if(title)title.textContent=recipe.title;if(desc)desc.textContent=recipe.description||'';});}
+      function showRecipeFromDatabase(doc,recipe){const dialog=doc.querySelector('#gr-dialog'),detail=doc.querySelector('#gr-detail');if(!dialog||!detail)return;detail.innerHTML=`<p class="gr-kicker">${esc(recipe.type).toUpperCase()} · ${esc(recipe.time)}</p><h2>${esc(recipe.title)}</h2><div class="gr-columns"><section><h4>INGREDIENTS</h4>${recipe.groups.map(group=>`<div class="gr-group"><b>${esc(group.name)}</b><ul>${group.ingredients.map(i=>`<li>${esc([i.quantity,i.ingredient_text].filter(Boolean).join(' '))}</li>`).join('')}</ul></div>`).join('')}</section><section><h4>ASSEMBLY INSTRUCTIONS</h4><ol>${recipe.steps.map(step=>`<li>${esc(step.instruction)}</li>`).join('')}</ol></section></div>`;dialog.showModal();}
+      async function addRecipeToMaster(recipe){const ids=recipe.groups.flatMap(group=>group.ingredients).map(i=>i.grocery_item_id).filter(Boolean);await Promise.all([...new Set(ids)].map(id=>setChecked(id,true)));}
+      function wireFrame(){const doc=frameDoc();if(!doc)return;buildMasterList(doc);renderRecipeData(doc);const clearButton=doc.querySelector('#master-clear');if(clearButton&&!clearButton.dataset.supabaseWired){clearButton.dataset.supabaseWired='1';clearButton.addEventListener('click',clearChecks);}
+        doc.addEventListener('click',event=>{const viewButton=event.target.closest('.card .view');if(viewButton){const card=viewButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe){event.preventDefault();event.stopImmediatePropagation();showRecipeFromDatabase(doc,recipe);}return;}const addButton=event.target.closest('.card .add');if(addButton){const card=addButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe)setTimeout(()=>addRecipeToMaster(recipe),0);}},true);
+        doc.addEventListener('click',event=>{if(event.target.closest('#master-clear'))setTimeout(()=>buildMasterList(doc),0);});buildMasterList(doc);
+      }
+      async function syncApp(){try{await loadDatabase();wireFrame();}catch(error){console.error('Gather Supabase sync failed:',error);showAuth('Unable to load your Gather data. Please refresh and try again.');}}
+      app.addEventListener('load',()=>{if(session)wireFrame();});
+      supabase.auth.onAuthStateChange((_event,newSession)=>{session=newSession;if(session){hideAuth();syncApp();}else showAuth();});
+      (async()=>{const {data,error}=await supabase.auth.getSession();if(error){showAuth(error.message);return;}session=data.session;if(session){hideAuth();if(app.contentDocument?.readyState==='complete')await syncApp();}else showAuth();})();
     })();
   </script>
 </body>
