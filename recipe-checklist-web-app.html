@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f5ee">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Gather">
+  <title>Gather — Recipes & Grocery Checklist</title>
+  <style>
+    *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;background:#f8f5ee}body{overflow:hidden}iframe{border:0;width:100%;height:100%;display:block;background:#f8f5ee}
+  </style>
+</head>
+<body>
+  <!-- Keep this file in the same folder as google-sites-recipe-embed.html when hosting. -->
+  <iframe id="app" title="Gather recipes and grocery checklist" src="google-sites-recipe-embed.html"></iframe>
+  <script>
+    (() => {
+      const storageKey = 'gather-grocery-checks-v1';
+      const app = document.querySelector('#app');
+      const save = () => {
+        try {
+          const checks = [...app.contentDocument.querySelectorAll('#master-list input:checked')].map(input => input.dataset.id);
+          localStorage.setItem(storageKey, JSON.stringify(checks));
+        } catch (_) {}
+      };
+      app.addEventListener('load', () => {
+        try {
+          const doc = app.contentDocument;
+          const saved = new Set(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+          saved.forEach(id => {
+            const input = [...doc.querySelectorAll('#master-list input')].find(item => item.dataset.id === id);
+            if (input && !input.checked) { input.checked = true; input.dispatchEvent(new Event('change', { bubbles: true })); }
+          });
+          doc.addEventListener('change', event => { if (event.target.matches('#master-list input')) setTimeout(save, 0); });
+          doc.addEventListener('click', event => { if (event.target.closest('.add, #master-clear')) setTimeout(save, 0); });
+        } catch (_) {}
+      });
+    })();
+  </script>
+</body>
+</html>
