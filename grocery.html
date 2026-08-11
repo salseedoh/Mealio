@@ -1,4 +1,3 @@
-<!-- Copy everything in this file and paste it into Google Sites: Insert > Embed > Embed code -->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
   #gather-recipes{--ink:#202521;--cream:#f8f5ee;--paper:#fffdf8;--sage:#d9e4cf;--sage-dark:#46604c;--orange:#e36331;--line:#dcd9d0;--muted:#70756f;color:var(--ink);background:var(--cream);font-family:'DM Sans',Arial,sans-serif;padding:clamp(20px,5vw,60px);box-sizing:border-box}#gather-recipes *{box-sizing:border-box}#gather-recipes .eyebrow{font:500 10px 'DM Mono',monospace;letter-spacing:1.2px;color:var(--sage-dark);margin:0 0 12px}#gather-recipes h1,#gather-recipes h2,#gather-recipes h3{font-family:'Playfair Display',Georgia,serif}#gather-recipes .hero{border-bottom:1px solid var(--line);padding:0 0 42px;margin-bottom:38px;position:relative}
@@ -38,23 +37,50 @@
   <div class="layout"><section><div class="heading"><div><p class="eyebrow">COOK THIS WEEK</p><h2>Recipes</h2></div></div><div class="grid" id="gr-grid"></div></section><aside class="list"><div class="list-heading"><div><p class="eyebrow">SHOPPING COMPANION</p><h2>Grocery list</h2></div><span class="total" id="gr-total">0 items</span></div><div class="empty" id="gr-empty"><i>⌑</i><p>Your list is waiting.</p><small>Add ingredients from a recipe to get started.</small></div><ul class="items" id="gr-items"></ul><div class="list-actions"><button class="clear" id="gr-clear" hidden>Clear completed</button><button class="clear clear-all" id="gr-clear-all" hidden>Clear grocery list</button></div><div class="note"><b>Pantry note</b><p>Check your staples before you shop.</p></div></aside></div>
 </div>
 <dialog class="gr-dialog" id="gr-dialog"><button class="gr-close" aria-label="Close recipe">×</button><div id="gr-detail"></div></dialog>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-(async () => {
-  const recipes=[
-    {title:'Low Fat Pepperoni Calzone',type:'Dinner',time:'30 min',emoji:'🥟',description:'A high-protein, freezer-friendly calzone with turkey pepperoni and mozzarella.',grocery:[['750g','2% Fage Greek Yogurt'],['2 packages','turkey pepperoni'],['1 package','fat free mozzerela']],groups:[['Dough Ingredients',['390g ap flour','156g vital wheat gluten','7.2g salt','8g garlic powder','4g Italian seasoning','9g baking powder','750g Fage 2% Greek yogurt']],['Filling',['180g turkey pepperoni','198g fat-free mozzarella','360g pizza sauce']]],steps:['Mix all dry ingredients.','Then mix in yogurt.','Split 6 ways.','Flour each side.','Roll out until flat.','Split the filling ingredients 6 ways, and add to the rolled-out dough on one side.','Fold over, then re-fold over the edges and press with a fork to seal.','Create 3 slices in the top of the dough to vent.','Freeze for 2 hours, then vacuum seal.','Cook at 400 degrees for 30 minutes, rotate halfway through.']},
+  const sb = window.supabase.createClient(
+  'https://bxqzzilkfdkndbwzavsi.supabase.co',
+  'sb_publishable_6HU9u-7fO5PsfjEhcOnDFg_rKswZ7-i'
+);
+const recipes=[
+    {title:'Low Fat Pepperoni Calzone',type:'Dinner',time:'30 min',emoji:'🥟',description:'A high-protein, freezer-friendly calzone with turkey pepperoni and mozzarella.',grocery:[['750g','2% Fage Greek Yogurt'],['2 packages','turkey pepperoni'],['1 package','fat free mozzarella']],groups:[['Dough Ingredients',['390g ap flour','156g vital wheat gluten','7.2g salt','8g garlic powder','4g Italian seasoning','9g baking powder','750g Fage 2% Greek yogurt']],['Filling',['180g turkey pepperoni','198g fat-free mozzarella','360g pizza sauce']]],steps:['Mix all dry ingredients.','Then mix in yogurt.','Split 6 ways.','Flour each side.','Roll out until flat.','Split the filling ingredients 6 ways, and add to the rolled-out dough on one side.','Fold over, then re-fold over the edges and press with a fork to seal.','Create 3 slices in the top of the dough to vent.','Freeze for 2 hours, then vacuum seal.','Cook at 400 degrees for 30 minutes, rotate halfway through.']},
     {title:'Chipotle Chicken',type:'Dinner',time:'7 min grill',emoji:'🌶️',description:'Versatile chipotle-marinated chicken for enchiladas, tacos, quesadillas, and more.',grocery:[['3.5 lbs','chicken'],['1 seven-ounce can','chipotle peppers in adobo sauce']],groups:[['Ingredients',['3.5 lbs chicken','1 seven-ounce can chipotle peppers in adobo sauce (use a minimum of 4 peppers; use more for more spice)','1 tsp cumin','4 garlic cloves','1 tsp dried oregano','2 tsp salt','1 tsp black pepper','1 tbsp chili powder','2 tbsp avocado oil','3/4 cup water']]],steps:['In a food processor, add the chipotle peppers, oil, garlic cloves, and spices.','While blending, slowly add water.','Trim chicken of any large chunks of fat.','With your knife, make shallow cuts on the surface of the chicken in a grid pattern to create more surface area for the marinade to contact.','Marinate overnight.','Grill on a George Forman Grill for 7 minutes.']},
     {title:"Raising Cane's Imitation Chicken Strips",type:'Dinner',time:'15 min air fry',emoji:'🍗',description:'Crispy chicken strips with seasoned roasted potatoes.',grocery:[['24','chicken strips'],['1 carton (16 oz)','egg whites'],['1 package','rice crispy cereal'],['2 lbs','potatoes']],groups:[['Chicken Strip Ingredients',['24 chicken strips (4 per day)','150g corn starch','3 tsp paprika','3 tsp garlic powder','Salt (to taste)','Black pepper (to taste)','1 carton egg whites (16 oz)','100g rice crispy cereal']],['Roast Potato Ingredients',['2 lbs potatoes','1 tsp onion powder','1 tsp garlic powder','1 tsp smoked paprika','1 tsp ground cumin','1 tsp oregano','1/2 tsp cayenne pepper','Salt (to taste)','Black pepper (to taste)','1 tbsp avocado oil']]],steps:['Chicken strips: Mix the spices and cornstarch in one bowl.','Pour half of the egg whites into another bowl.','Put crushed rice crispies in a third bowl.','Dip chicken in this order: cornstarch, egg wash, then rice crispies.','Top up each bowl as needed.','Spray strips with oil.','Air fry for 15 minutes at 400 degrees.','Roast potatoes: Mix all ingredients in a bowl.','Air fry at 390 degrees for 20 minutes, shaking halfway through.']},
     {title:'Enchilada Pasta',type:'Dinner',time:'9 min pasta',emoji:'🍝',description:'Chipotle chicken, creamy enchilada-style sauce, and penne.',grocery:[['3 lbs','chicken'],['1 seven-ounce can','chipotle peppers in adobo sauce'],['1 tube','garlic paste'],['3 cups','fat free milk'],['198g','fat free cheese']],groups:[['Chicken Ingredients',['3 lbs chicken','1 seven-ounce can chipotle peppers in adobo sauce (use a minimum of 4 peppers; use more for more spice)','1 tsp cumin','4 garlic cloves','1 tsp dried oregano','2 tsp salt','1 tsp black pepper','1 tbsp chili powder','2 tbsp avocado oil','3/4 cup water']],['Sauce Ingredients',['3 tbsp flour','3 tbsp avocado oil','3 cups fat free milk','198g fat free cheese','Salt (to taste)','Pepper (to taste)','Crushed red peppers (to taste)','Garlic paste (30% of the tube, or whatever is left over if used on chicken)']],['Pasta Ingredients',['Water','Penne pasta','Salt']]],steps:['Chicken: In a food processor, add the chipotle peppers, oil, garlic cloves, and spices.','While blending, slowly add water.','Trim chicken of any large chunks of fat.','With your knife, make shallow cuts on the surface of the chicken in a grid pattern to create more surface area for the marinade to contact.','Marinate overnight.','Grill on a George Forman Grill for 7 minutes.','Cut into small to medium chunks.','Sauce: Put oil into a wok or large pot and heat.','Once heated, add flour and mix for about 1 minute.','Add milk slowly while whisking to avoid clumping.','Once the mixture reaches 165°F, remove from heat and slowly stir in cheese.','Mix in spices and garlic paste.','Pasta: Fill pot with water and bring to a boil.','Add a small handful of salt.','Add pasta and stir.','Cook for 9 minutes, or as directed on the package for al dente.','Drain, then add back to pot and fill with new water to stop the cooking process.']},
     {title:'Chicken Alfredo Pasta',type:'Dinner',time:'9 min pasta',emoji:'🍜',description:'Grilled garlic chicken with a creamy fat-free cheese Alfredo sauce.',grocery:[['3 lbs','chicken'],['1 tube','garlic paste'],['3 cups','fat free milk'],['198g','fat free cheese']],groups:[['Chicken Ingredients',['3 lbs chicken','1 tube garlic paste (some used in sauce)','Salt (to taste)','Pepper (to taste)','Smoked paprika (to taste)']],['Sauce Ingredients',['3 tbsp flour','3 tbsp avocado oil','3 cups fat free milk','198g fat free cheese','Salt (to taste)','Pepper (to taste)','Smoked paprika (to taste)','Italian seasoning (to taste)','Crushed red peppers (to taste)','Garlic paste (30% of the tube, or whatever is left over if used on chicken)']],['Pasta Ingredients',['Water','Penne pasta','Salt']]],steps:['Chicken: Slice chicken into strips.','Add garlic paste and seasonings along with chicken into a bowl and mix.','Grill on a George Foreman grill for 7 minutes.','Dice into small chunks.','Sauce: Put oil into a wok or large pot and heat.','Once heated, add flour and mix for about 1 minute.','Add milk slowly while whisking to avoid clumping.','Once the mixture reaches 165°F, remove from heat and slowly stir in cheese.','Mix in spices and garlic paste.','Pasta: Fill pot with water and bring to a boil.','Add a small handful of salt.','Add pasta and stir.','Cook for 9 minutes, or as directed on the package for al dente.','Drain, then add back to pot and fill with new water to stop the cooking process.']},
   ];
-  const grid=document.querySelector('#gr-grid'),items=document.querySelector('#gr-items'),empty=document.querySelector('#gr-empty'),total=document.querySelector('#gr-total'),clear=document.querySelector('#gr-clear'),clearAll=document.querySelector('#gr-clear-all'),dialog=document.querySelector('#gr-dialog'),detail=document.querySelector('#gr-detail'),shopping=new Map();
+const grid=document.querySelector('#gr-grid'),
+dialog=document.querySelector('#gr-dialog'),
+detail=document.querySelector('#gr-detail'),
+checked=new Set();  
+    const recipeChecks={
+    'Low Fat Pepperoni Calzone':['Flour','Salt','Garlic powder','Italian seasoning ($5)','Baking powder','Greek yogurt','Turkey pepperoni','Cheese','Cheese / Shredded ($2)','Pizza sauce'],
+    'Chipotle Chicken':['Chicken ($6 per lb)','Chipotle peppers','Cumin ($5)','Garlic','Garlic / Bulb','Oregano','Salt','Black pepper','Chili powder','Avocado Oil'],
+    'Enchilada Pasta':['Chicken ($6 per lb)','Chipotle peppers','Cumin ($5)','Garlic','Garlic / Bulb','Garlic / Paste ($4)','Oregano','Salt','Black pepper','Chili powder','Avocado Oil','Flour','Fairlife Milk','Cheese','Cheese / Shredded ($2)','Red pepper flakes','Pasta','Pasta / Penne ($2)'],
+    'Chicken Alfredo Pasta':['Chicken ($6 per lb)','Garlic','Garlic / Paste ($4)','Salt','Black pepper','Smoked Paprika ($5)','Italian seasoning ($5)','Avocado Oil','Flour','Fairlife Milk','Cheese','Cheese / Shredded ($2)','Red pepper flakes','Pasta','Pasta / Penne ($2)'],
+    "Raising Cane's Imitation Chicken Strips":['Chicken ($6 per lb)','Corn starch','Paprika','Garlic powder','Salt','Black pepper','Egg whites','Rice crispies','Potatoes','Potatoes / Microwavable','Onion powder ($5)','Smoked Paprika ($5)','Cumin ($5)','Oregano','Cayenne pepper','Avocado Oil']
+  };
   recipes.forEach(recipe=>{const card=document.createElement('article');card.className='card';card.innerHTML=`<div class="art"><span>${recipe.emoji}</span></div><div class="body"><div class="meta"><b>${recipe.type.toUpperCase()}</b><span>${recipe.time}</span></div><h3>${recipe.title}</h3><p class="desc">${recipe.description}</p><div class="actions"><button class="view">View recipe</button><button class="add">Add to list <span>+</span></button></div></div>`;card.querySelector('.view').onclick=()=>show(recipe);card.querySelector('.add').onclick=e=>add(recipe,e.currentTarget);grid.append(card)});
-  function add(recipe,button){const ingredients=[...new Set(recipe.groups.flatMap(([,group])=>group))];ingredients.forEach(ingredient=>{const old=shopping.get(ingredient);shopping.set(ingredient,old?{...old,recipes:old.recipes+1}:{amount:'',recipes:1,done:false})});button.innerHTML='Added <span>✓</span>';setTimeout(()=>button.innerHTML='Add to list <span>+</span>',1300);render()}
-  function render(){items.innerHTML='';shopping.forEach((data,name)=>{const li=document.createElement('li');li.className=data.done?'done':'';const check=document.createElement('input');check.type='checkbox';check.checked=data.done;check.onchange=()=>{data.done=check.checked;render()};const label=document.createElement('label');label.textContent=`${data.amount} ${name}`;if(data.recipes>1){const small=document.createElement('small');small.textContent=`needed for ${data.recipes} recipes`;label.append(small)}li.append(check,label);items.append(li)});const count=shopping.size;total.textContent=`${count} item${count===1?'':'s'}`;empty.hidden=count>0;clear.hidden=![...shopping.values()].some(x=>x.done);clearAll.hidden=count===0}
-  clear.onclick=()=>{for(const [name,item] of shopping)if(item.done)shopping.delete(name);render()};clearAll.onclick=()=>{shopping.clear();render()};document.querySelector('.gr-close').onclick=()=>dialog.close();dialog.onclick=e=>{if(e.target===dialog)dialog.close()};
+function add(recipe,button){
+
+  const matches = recipeChecks[recipe.title] || [];
+
+  matches.forEach(item=>{
+    checked.add(item);
+  });
+
+  if(typeof renderMasterList === 'function'){
+    renderMasterList();
+  }
+
+  button.innerHTML='Added <span>✓</span>';
+
+  setTimeout(()=>{
+    button.innerHTML='Add to list <span>+</span>';
+  },1300);
+}
   function show(recipe){const groups=recipe.groups||[['Ingredients',recipe.grocery.map(x=>x.join(' '))]];detail.innerHTML=`<p class="gr-kicker">${recipe.type.toUpperCase()} · ${recipe.time}</p><h2>${recipe.title}</h2><div class="gr-columns"><section><h4>INGREDIENTS</h4>${groups.map(g=>`<div class="gr-group"><b>${g[0]}</b><ul>${g[1].map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('')}</section><section><h4>ASSEMBLY INSTRUCTIONS</h4><ol>${(recipe.steps||['Prepare and enjoy.']).map(s=>`<li>${s}</li>`).join('')}</ol></section></div>`;dialog.showModal()}
-})();
 </script>
 <style>#gather-recipes.list-view .hero{display:none}</style>
 <style>
@@ -62,25 +88,32 @@
 </style>
 <div id="gr-extra"></div>
 <script>
-(() => {
+(async () => {
   const root=document.querySelector('#gather-recipes'), extra=document.querySelector('#gr-extra');root.prepend(extra);
-  const items=[
-    'Spicy garlic hot sauce (Aldi)','Air filter (20x30x1)','Nematodes','Car cabin air filter','Foil pans','Oil change stuff','Bug spray','Rugs','Sunscreen','Super glue','AA batteries','AAA batteries','Cr2450 battery','CR2032 batteries','Toilet paper','Travel kleenex','Travel sunscreen','Swiffer pads','Plastic Wrap','Dove bar soap','Parchment paper ($7)',{name:'Ziplocks',children:['Gallon (19)','Quart (75)','Sandwich (40)']},'Febreze','Laundry stain spray','Cleansing wipes','Sanitizing spray','Scrubbing bubbles','Baking soda','Baking powder','Vinegar','Dryer sheets','Trash bags (glad, febreze, 80ct, 13gal)','Large paper plates','Small paper plates ($12 for 200ct)','Paper towels','Puffs square box','All purpose cleaner','Dish wash pods','Dish soap ($3 for 12.2oz)','Air Wick oil (brown sugar and vanilla)','Sponges','Hand soap','Dish gloves','Detergent','Bleach','Pet stain remover','Carpet powder (photos)','Dog food wet ($10)','Dog food dry','Greenies','Dog meds','Pill pockets ($10 for 7.9oz)',{name:'Chips',children:['Sunchips ($4 per bag)','Tortilla chips']},'Loofa','Protein powder ($20)','Protein pastries ($10 per box)','Protein pretzels ($2.50)','Body wash','Shampoo','Deodorant','Blackhead scrub','Acne strips','Lotion','Floss sticks','Floss threaders','Toothpaste','Toothbrush heads (G2 brush sync)',{name:'Vitamins',children:['Potassium','Tumeric','Omega 3 (1000mg)','Tart cherry extract','Fiber','Calcium','1 a day']},'Flonase','Gloves ($10)','Foil','Sandwich bread','English muffins ($4)','Apple cider vinegar','Avocado oil','Pancake/Waffle Mix ($6)','Yeast','Flour','Corn starch','Corn meal','Rice crispies','Pizza sauce','Cacao powder (100%)','Italian seasoning ($5)','Cayenne pepper','White pepper','Black pepper','Lemon pepper','Salt/pepper/garlic','Salt','Garlic powder','Onion powder ($5)','Oregano','Aleppo pepper','Paprika','Smoked paprika ($5)','Chipotle chili powder','Pumpkin spice','Chili powder','Parsley','Bay leaves','Red pepper flakes','Cumin ($5)','Roma tomatoes','Jello','Vanilla extract ($9)','Cajun hot sauce','Somball','Chipotle peppers','Coconut flour','Brown sugar swerve','Regular swerve','PB2 ($9)','Chocolate chips ($4)','Honey','Syrup ($3)',{name:'Chicken ($6 per lb)',children:['Cream of chicken 10.75oz','Stuffing']},{name:'Steaks',children:['Eye of round']},'Turkey','Ham','Beef stir fry',{name:'Ground beef',children:['2 lbs','Bone broth 479g','Unflavored gelatin 7grams','Tomato paste 102grams','20 fajita tortillas','20 street taco tortillas','Jalapeno cheese sauce ($4)','500g fat free greek yogurt']},'Lime juice','Chicken broth',{name:'Pasta',children:['Penne ($2)','Rigatoni ($4)']},'Tortillas','Guajillo peppers','Chick fil a sauce','Siracha','Bbq sauce','Asian sweet chili sauce','Taco salsa','Chili garlic sauce','Cajun sauce','Soy sauce','Breakfast sausage ($11)','Fairlife milk','Greek yogurt','Turkey pepperoni','Allegra','Eggs','Egg whites',{name:'Cheese',children:['Shredded ($2)','Sliced','Grated','Block']},'Mio ($6/$3)','Deli meats',{name:'Garlic',children:['Bulb','Paste ($4)']},'Cilantro','Jalapeños','Serranos','Tomatillos',{name:'Potatoes',children:['Yukon gold for mashed','Microwavable']},'Onion 1','Limes 2','Rosemary','Thyme','Basil','Oranges 2'
-  ];
-  const { data: stores } = await sb
+const { data: stores, error: storeError } = await sb
   .from('grocery_stores')
   .select('*')
   .order('sort_order');
 
-const { data: items } = await sb
+if (storeError) {
+  console.error(storeError);
+  return;
+}
+
+const { data: items, error: itemError } = await sb
   .from('grocery_items')
   .select('*')
   .eq('active', true)
   .order('sort_order');
 
-const sections = stores.map(store => ({
+if (itemError) {
+  console.error(itemError);
+  return;
+}
+
+const sections = (stores || []).map(store => ({
   name: store.name,
-  items: items
+  items: (items || [])
     .filter(item => item.store_id === store.id)
     .map(item => {
       if (item.parent_id) return null;
@@ -99,20 +132,13 @@ const sections = stores.map(store => ({
     .filter(Boolean)
 }));
   extra.innerHTML=`<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head"><div><p class="eyebrow">MASTER SHOPPING LIST</p><h2>Grocery Checklist</h2><p>Items stay unchecked until you select them or add a recipe.</p></div><button class="master-clear" id="master-clear">Clear all checks</button></div><ul class="master-list" id="master-list"></ul></section>`;
-  const checked=new Set(), list=document.querySelector('#master-list');
+  const list=document.querySelector('#master-list');
   const key=(parent,name)=>parent?`${parent} / ${name}`:name;
-  function makeRow(name,id,children){const li=document.createElement('li'),label=document.createElement('label'),input=document.createElement('input'),span=document.createElement('span');input.type='checkbox';input.dataset.id=id;span.textContent=name;label.append(input,span);li.append(label);input.onchange=()=>{input.checked?checked.add(id):checked.delete(id);render()};if(children){const nested=document.createElement('ul');nested.className='master-children';children.forEach(child=>nested.append(makeRow(child,key(id,child))));li.append(nested)}return li}
-  function render(){list.innerHTML='';sections.forEach(section=>{const title=document.createElement('li');title.className='master-section';title.textContent=section.name;list.append(title);section.items.forEach(item=>{if(item.section){const sub=document.createElement('li');sub.className='master-section mindy-section';sub.textContent=item.section;list.append(sub);item.items.forEach(child=>list.append(makeRow(child,key(key(section.name,item.section),child))));}else if(typeof item==='string')list.append(makeRow(item,key(section.name,item)));else list.append(makeRow(item.name,key(section.name,item.name),item.children))})});list.querySelectorAll('input').forEach(input=>{input.checked=checked.has(input.dataset.id);input.closest('li').classList.toggle('checked',input.checked)})}
+  function makeRow(name,id,children){const li=document.createElement('li'),label=document.createElement('label'),input=document.createElement('input'),span=document.createElement('span');input.type='checkbox';input.dataset.id=id;span.textContent=name;label.append(input,span);li.append(label);input.onchange=()=>{input.checked?checked.add(id):checked.delete(id);renderMasterList()};if(children){const nested=document.createElement('ul');nested.className='master-children';children.forEach(child=>nested.append(makeRow(child,key(id,child))));li.append(nested)}return li}
+  function renderMasterList(){list.innerHTML='';sections.forEach(section=>{const title=document.createElement('li');title.className='master-section';title.textContent=section.name;list.append(title);section.items.forEach(item=>{if(item.section){const sub=document.createElement('li');sub.className='master-section mindy-section';sub.textContent=item.section;list.append(sub);item.items.forEach(child=>list.append(makeRow(child,key(key(section.name,item.section),child))));}else if(typeof item==='string')list.append(makeRow(item,key(section.name,item)));else list.append(makeRow(item.name,key(section.name,item.name),item.children))})});list.querySelectorAll('input').forEach(input=>{input.checked=checked.has(input.dataset.id);input.closest('li').classList.toggle('checked',input.checked)})}
   function showList(){root.classList.add('list-view');document.querySelector('#gr-show-list').classList.add('active');document.querySelector('#gr-show-recipes').classList.remove('active')}function showRecipes(){root.classList.remove('list-view');document.querySelector('#gr-show-recipes').classList.add('active');document.querySelector('#gr-show-list').classList.remove('active')}
-  document.querySelector('#gr-show-list').onclick=showList;document.querySelector('#gr-show-recipes').onclick=showRecipes;document.querySelector('#master-clear').onclick=()=>{checked.clear();render()};
-  const recipeChecks={
-    'Low Fat Pepperoni Calzone':['Flour','Salt','Garlic powder','Italian seasoning ($5)','Baking powder','Greek yogurt','Turkey pepperoni','Cheese','Cheese / Shredded ($2)','Pizza sauce'],
-    'Chipotle Chicken':['Chicken ($6 per lb)','Chipotle peppers','Cumin ($5)','Garlic','Garlic / Bulb','Oregano','Salt','Black pepper','Chili powder','Avocado Oil'],
-    'Enchilada Pasta':['Chicken ($6 per lb)','Chipotle peppers','Cumin ($5)','Garlic','Garlic / Bulb','Garlic / Paste ($4)','Oregano','Salt','Black pepper','Chili powder','Avocado Oil','Flour','Fairlife Milk','Cheese','Cheese / Shredded ($2)','Red pepper flakes','Pasta','Pasta / Penne ($2)'],
-    'Chicken Alfredo Pasta':['Chicken ($6 per lb)','Garlic','Garlic / Paste ($4)','Salt','Black pepper','Smoked Paprika ($5)','Italian seasoning ($5)','Avocado Oil','Flour','Fairlife Milk','Cheese','Cheese / Shredded ($2)','Red pepper flakes','Pasta','Pasta / Penne ($2)'],
-    "Raising Cane's Imitation Chicken Strips":['Chicken ($6 per lb)','Corn starch','Paprika','Garlic powder','Salt','Black pepper','Egg whites','Rice crispies','Potatoes','Potatoes / Microwavable','Onion powder ($5)','Smoked Paprika ($5)','Cumin ($5)','Oregano','Cayenne pepper','Avocado Oil']
-  };
-  document.querySelector('#gr-grid').addEventListener('click',event=>{const card=event.target.closest('.card');const recipe=card&&card.querySelector('h3').textContent;if(!recipe||!event.target.closest('.add')||!recipeChecks[recipe])return;recipeChecks[recipe].forEach(x=>checked.add(`Walmart / ${x}`));render()});
-  render();showList();
+  document.querySelector('#gr-show-list').onclick=showList;document.querySelector('#gr-show-recipes').onclick=showRecipes;document.querySelector('#master-clear').onclick=()=>{checked.clear();renderMasterList()};
+  renderMasterList();
+showList();
 })();
 </script>
