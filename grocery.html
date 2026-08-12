@@ -180,20 +180,10 @@ function renderRecipes(){
   });
 }
 
-async function add(recipe, button){
+function add(recipe, button){
 
-  const { data, error } = await sb
-    .from('recipe_ingredients')
-    .select('grocery_item_id')
-    .eq('recipe_id', recipe.id);
-
-  if (error) {
-    console.error('Error loading recipe ingredients:', error);
-    return;
-  }
-
-  (data || []).forEach(row => {
-    const key = groceryItemKeyById.get(row.grocery_item_id);
+  (recipe.groceryItemIds || []).forEach(groceryItemId => {
+    const key = groceryItemKeyById.get(groceryItemId);
 
     if (key) {
       checked.add(key);
