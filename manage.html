@@ -24,19 +24,41 @@ async function persistGroceryOrder(container,storeId){
   const storeItems=items.filter(i=>i.store_id===storeId&&!i.parent_id&&i.active!==false).sort((a,b)=>a.sort_order-b.sort_order);
   const orderedIds=ordered.map(el=>el.dataset.itemId);
   if(orderedIds.length!==storeItems.length){console.error('Could not determine complete grocery order.');await load();return;}
+
+  // Keep every grocery item in its existing global position, but replace the
+  // selected store's items with the new order. This prevents sort_order
+  // collisions between different stores from scrambling the master list.
+  const allTopLevel=items
+    .filter(i=>i.active!==false&&!i.parent_id)
+    .sort((a,b)=>a.sort_order-b.sort_order || String(a.id).localeCompare(String(b.id)));
+  const selectedIds=new Set(storeItems.map(i=>i.id));
+  let nextSelectedIndex=0;
+  const desiredGlobalIds=allTopLevel.map(item=>{
+    if(selectedIds.has(item.id)) return orderedIds[nextSelectedIndex++];
+    return item.id;
+  });
+
+  if(nextSelectedIndex!==orderedIds.length){
+    console.error('Could not build complete grocery order.');
+    await load();
+    return;
+  }
+
   const tempOffset=1000000;
-  for(let index=0;index<storeItems.length;index++){
-    const item=storeItems[index];
+  for(let index=0;index<allTopLevel.length;index++){
+    const item=allTopLevel[index];
     const result=await sb.from('grocery_items').update({sort_order:tempOffset+index+1}).eq('id',item.id).eq('user_id',session.user.id).select('id,sort_order').single();
     if(result.error){console.error('Error preparing grocery order:',result.error);alert('The grocery order could not be saved. '+result.error.message);await load();return;}
     if(!result.data){console.error('No grocery item was updated during order preparation:',item.id);alert('The grocery order could not be saved. Please try again.');await load();return;}
   }
-  for(let index=0;index<orderedIds.length;index++){
-    const id=orderedIds[index];
+
+  for(let index=0;index<desiredGlobalIds.length;index++){
+    const id=desiredGlobalIds[index];
     const result=await sb.from('grocery_items').update({sort_order:index+1}).eq('id',id).eq('user_id',session.user.id).select('id,sort_order').single();
     if(result.error){console.error('Error saving grocery order:',result.error);alert('The grocery order could not be saved. '+result.error.message);await load();return;}
     if(!result.data){console.error('No grocery item was updated while saving order:',id);alert('The grocery order could not be saved. Please try again.');await load();return;}
   }
+
   await load();
 }
 function groceryEditor(item=null){const isNew=!item;const store=stores[0]?.id||'';const parents=items.filter(i=>!i.parent_id&&i.active!==false);$('#sheetContent').innerHTML=`<h3>${isNew?'Add':'Edit'} grocery item</h3><div class="form"><div class="field"><label>Name</label><input id="gName" value="${esc(item?.name||'')}"></div><div class="field"><label>Store</label><select id="gStore">${stores.map(s=>`<option value="${s.id}" ${s.id===(item?.store_id||store)?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div><div class="field"><label>Section (optional)</label><input id="gSection" placeholder="e.g. Mindy" value="${esc(item?.section_name||'')}"></div><div class="field"><label>Parent item (optional)</label><select id="gParent"><option value="">None</option>${parents.filter(p=>p.id!==item?.id).map(p=>`<option value="${p.id}" ${p.id===item?.parent_id?'selected':''}>${esc(storeName(p.store_id))} / ${esc(p.name)}</option>`).join('')}</select></div></div><div class="modal-actions"><button class="secondary" onclick="closeModal()">Cancel</button><button class="save" id="saveG">Save</button></div>`;openModal();$('#saveG').onclick=async()=>{const name=$('#gName').value.trim();if(!name)return alert('Enter an item name.');const payload={name,store_id:$('#gStore').value,section_name:$('#gSection').value.trim()||null,parent_id:$('#gParent').value||null,user_id:session.user.id,active:true,sort_order:item?.sort_order??(Math.max(0,...items.filter(i=>i.store_id===$('#gStore').value).map(i=>i.sort_order||0))+1)};const r=isNew?await sb.from('grocery_items').insert(payload):await sb.from('grocery_items').update(payload).eq('id',item.id).eq('user_id',session.user.id);if(r.error)return alert(r.error.message);closeModal();await load()}}
