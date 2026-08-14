@@ -48,7 +48,7 @@
       const auth = document.querySelector('#gather-auth');
       const authForm = document.querySelector('#gather-auth-card');
       const authStatus = document.querySelector('#gather-auth-status');
-      let session = null, groceryItems = [], recipes = [], checklist = new Set(), recipeByTitle = new Map(), itemById = new Map(), itemByPath = new Map();
+      let session = null, groceryItems = [], recipes = [], checklist = new Set(), recipeByTitle = new Map(), itemById = new Map(), itemByPath = new Map(), itemQuantities = new Map();
       const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
       function frameDoc(){ return app.contentDocument; }
       function showAuth(message=''){ auth.hidden=false; authStatus.textContent=message; }
@@ -58,7 +58,7 @@
       async function loadDatabase(){
         const results=await Promise.all([
           supabase.from('grocery_stores').select('id,name,sort_order').eq('user_id',session.user.id).order('sort_order'),
-          supabase.from('grocery_items').select('id,store_id,name,parent_id,sort_order,active,section_name').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
+          supabase.from('grocery_items').select('id,store_id,name,parent_id,sort_order,active,section_name,price,tax,notes').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
           supabase.from('recipes').select('id,title,type,time,description,emoji,sort_order,active').eq('user_id',session.user.id).eq('active',true).order('sort_order'),
           supabase.from('recipe_groups').select('id,recipe_id,name,sort_order').order('sort_order'),
           supabase.from('recipe_ingredients').select('id,recipe_id,group_id,grocery_item_id,quantity,ingredient_text,sort_order').order('sort_order'),
@@ -80,7 +80,126 @@
         const list=doc.querySelector('#master-list'); if(!list)return;
         const children=new Map(); groceryItems.forEach(item=>{if(!children.has(item.parent_id||0))children.set(item.parent_id||0,[]);children.get(item.parent_id||0).push(item);});
         const storeNames=new Map(); groceryItems.forEach(item=>{const path=[...itemByPath.entries()].find(([,id])=>id===item.id)?.[0];const storeName=path?.split(' / ')[0];if(storeName)storeNames.set(item.store_id,storeName);});
-        const row=item=>{const li=doc.createElement('li'),label=doc.createElement('label'),input=doc.createElement('input'),span=doc.createElement('span');input.type='checkbox';input.dataset.dbId=item.id;input.dataset.id=[...itemByPath.entries()].find(([,id])=>id===item.id)?.[0]||String(item.id);input.checked=checklist.has(item.id);span.textContent=item.name;label.append(input,span);li.append(label);if(input.checked)li.classList.add('checked');input.addEventListener('change',()=>setChecked(item.id,input.checked));const nested=(children.get(item.id)||[]).sort((a,b)=>a.sort_order-b.sort_order);if(nested.length){const ul=doc.createElement('ul');ul.className='master-children';nested.forEach(child=>ul.append(row(child)));li.append(ul);}return li;};
+        const row=item=>{
+  const li=doc.createElement('li');
+  const label=doc.createElement('label');
+  const input=doc.createElement('input');
+  const span=doc.createElement('span');
+  const infoButton=doc.createElement('button');
+
+  li.className='grocery-item-row';
+
+  input.type='checkbox';
+  input.dataset.dbId=item.id;
+  input.dataset.id=[...itemByPath.entries()].find(([,id])=>id===item.id)?.[0]||String(item.id);
+  input.checked=checklist.has(item.id);
+
+  span.textContent=item.name;
+
+  infoButton.type='button';
+  infoButton.className='grocery-info-button';
+  infoButton.textContent='ⓘ';
+  infoButton.setAttribute('aria-label',`View information for ${item.name}`);
+  infoButton.dataset.groceryInfoId=item.id;
+
+  label.append(input,span);
+  li.append(label,infoButton);
+
+  if(input.checked)li.classList.add('checked');
+
+  input.addEventListener('change',()=>setChecked(item.id,input.checked));
+
+  if(!itemQuantities.has(item.id)){
+    itemQuantities.set(item.id,1);
+  }
+
+  const nested=(children.get(item.id)||[]).sort((a,b)=>a.sort_order-b.sort_order);
+
+  if(nested.length){
+    const ul=doc.createElement('ul');
+    ul.className='master-children';
+    nested.forEach(child=>ul.append(row(child)));
+    li.append(ul);
+  }
+
+  return li;
+};
+        function showGroceryInfo(itemId){
+  const item=itemById.get(Number(itemId));
+  if(!item)return;
+
+  if(!itemQuantities.has(item.id)){
+    itemQuantities.set(item.id,1);
+  }
+
+  const quantity=itemQuantities.get(item.id);
+
+  const overlay=doc.createElement('div');
+  overlay.className='grocery-info-overlay';
+
+  const modal=doc.createElement('div');
+  modal.className='grocery-info-modal';
+
+  const priceText=item.price==null||item.price===''?'Not available':`$${Number(item.price).toFixed(2)}`;
+  const notesText=item.notes==null||item.notes.trim()===''?'No notes for this item.':item.notes;
+
+  modal.innerHTML=`
+    <div class="grocery-info-header">
+      <h3>${esc(item.name)}</h3>
+      <button type="button" class="grocery-info-close" aria-label="Close">×</button>
+    </div>
+
+    <div class="grocery-info-content">
+      <div class="grocery-info-field">
+        <div class="grocery-info-label">PRICE</div>
+        <div class="grocery-info-value">${priceText}</div>
+      </div>
+
+      <div class="grocery-info-field">
+        <div class="grocery-info-label">NOTES</div>
+        <div class="grocery-info-value">${esc(notesText)}</div>
+      </div>
+
+      <div class="grocery-info-field">
+        <label class="grocery-info-label" for="grocery-quantity-${item.id}">QUANTITY</label>
+        <select id="grocery-quantity-${item.id}" class="grocery-quantity">
+          ${Array.from({length:10},(_,index)=>{
+            const value=index+1;
+            return `<option value="${value}" ${value===quantity?'selected':''}>${value}</option>`;
+          }).join('')}
+        </select>
+      </div>
+    </div>
+  `;
+
+  overlay.append(modal);
+  doc.body.append(overlay);
+
+  const close=()=>{
+    overlay.remove();
+  };
+
+  modal.querySelector('.grocery-info-close').addEventListener('click',close);
+
+  overlay.addEventListener('click',event=>{
+    if(event.target===overlay)close();
+  });
+
+  const quantitySelect=modal.querySelector('.grocery-quantity');
+
+  quantitySelect.addEventListener('change',()=>{
+    itemQuantities.set(item.id,Number(quantitySelect.value));
+  });
+}
+        list.addEventListener('click',event=>{
+  const infoButton=event.target.closest('.grocery-info-button');
+
+  if(infoButton){
+    event.preventDefault();
+    event.stopPropagation();
+    showGroceryInfo(infoButton.dataset.groceryInfoId);
+  }
+});
         list.innerHTML=''; const stores=new Map(); groceryItems.forEach(item=>{if(!stores.has(item.store_id))stores.set(item.store_id,[]);stores.get(item.store_id).push(item);});
         [...stores.keys()].sort((a,b)=>{const an=storeNames.get(a)||'',bn=storeNames.get(b)||'',order={Walmart:0,Costco:1};return(order[an]??99)-(order[bn]??99)||an.localeCompare(bn);}).forEach(storeId=>{
           const title=doc.createElement('li');title.className='master-section';title.textContent=storeNames.get(storeId)||'Store';list.append(title);
