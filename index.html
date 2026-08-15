@@ -77,7 +77,6 @@
         checklist=new Set((results[6].data||[]).filter(row=>row.checked).map(row=>row.grocery_item_id));
         itemQuantities = new Map(
   (results[6].data || [])
-    .filter(row => row.checked)
     .map(row => [row.grocery_item_id, Number(row.quantity) || 1])
 );
       }
@@ -215,21 +214,25 @@
 const quantitySelect=modal.querySelector('.grocery-quantity');
 
 quantitySelect.addEventListener('change',async ()=>{
+  const previousQuantity=itemQuantities.get(item.id)||1;
   const quantity=Number(quantitySelect.value)||1;
 
   itemQuantities.set(item.id,quantity);
 
   const {error}=await supabase
     .from('grocery_checklist')
-    .update({
-      quantity:quantity,
+    .upsert({
+      user_id:session.user.id,
+      grocery_item_id:item.id,
+      checked:checklist.has(item.id),
+      quantity,
       updated_at:new Date().toISOString()
-    })
-    .eq('user_id',session.user.id)
-    .eq('grocery_item_id',item.id);
+    },{onConflict:'user_id,grocery_item_id'});
 
   if(error){
     console.error('Quantity update failed:',error);
+    itemQuantities.set(item.id,previousQuantity);
+    quantitySelect.value=String(previousQuantity);
     return;
   }
 
@@ -323,24 +326,15 @@ async function setChecked(itemId,checked){
     checklist.delete(itemId);
   }
 
-  const result = checked
-    ? await supabase
-        .from('grocery_checklist')
-        .upsert(
-          {
-  user_id:session.user.id,
-  grocery_item_id:itemId,
-  checked:true,
-  quantity:Number(itemQuantities.get(itemId)) || 1,
-  updated_at:new Date().toISOString()
-}
-          {onConflict:'user_id,grocery_item_id'}
-        )
-    : await supabase
-        .from('grocery_checklist')
-        .delete()
-        .eq('user_id',session.user.id)
-        .eq('grocery_item_id',itemId);
+  const result = await supabase
+    .from('grocery_checklist')
+    .upsert({
+      user_id:session.user.id,
+      grocery_item_id:itemId,
+      checked,
+      quantity:Number(itemQuantities.get(itemId)) || 1,
+      updated_at:new Date().toISOString()
+    },{onConflict:'user_id,grocery_item_id'});
 
   if(result.error){
     console.error('Checklist sync failed:',result.error);
@@ -348,7 +342,7 @@ async function setChecked(itemId,checked){
 
   buildMasterList(frameDoc());
 }
-      async function clearChecks(){const {error}=await supabase.from('grocery_checklist').delete().eq('user_id',session.user.id);if(error){console.error('Clear checklist failed:',error);return;}checklist.clear();buildMasterList(frameDoc());}
+      async function clearChecks(){const {error}=await supabase.from('grocery_checklist').update({checked:false,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('checked',true);if(error){console.error('Clear checklist failed:',error);return;}checklist.clear();buildMasterList(frameDoc());}
       function renderRecipeData(doc){const cards=[...doc.querySelectorAll('#gr-grid .card')];recipes.forEach((recipe,index)=>{const card=cards[index];if(!card)return;const art=card.querySelector('.art span'),metaType=card.querySelector('.meta b'),metaTime=card.querySelector('.meta span'),title=card.querySelector('h3'),desc=card.querySelector('.desc');if(art)art.textContent=recipe.emoji||'🍽️';if(metaType)metaType.textContent=(recipe.type||'').toUpperCase();if(metaTime)metaTime.textContent=recipe.time||'';if(title)title.textContent=recipe.title;if(desc)desc.textContent=recipe.description||'';});}
       function showRecipeFromDatabase(doc,recipe){const dialog=doc.querySelector('#gr-dialog'),detail=doc.querySelector('#gr-detail');if(!dialog||!detail)return;detail.innerHTML=`<p class="gr-kicker">${esc(recipe.type).toUpperCase()} · ${esc(recipe.time)}</p><h2>${esc(recipe.title)}</h2><div class="gr-columns"><section><h4>INGREDIENTS</h4>${recipe.groups.map(group=>`<div class="gr-group"><b>${esc(group.name)}</b><ul>${group.ingredients.map(i=>`<li>${esc([i.quantity,i.ingredient_text].filter(Boolean).join(' '))}</li>`).join('')}</ul></div>`).join('')}</section><section><h4>ASSEMBLY INSTRUCTIONS</h4><ol>${recipe.steps.map(step=>`<li>${esc(step.instruction)}</li>`).join('')}</ol></section></div>`;dialog.showModal();}
       async function addRecipeToMaster(recipe){const ids=recipe.groups.flatMap(group=>group.ingredients).map(i=>i.grocery_item_id).filter(Boolean);await Promise.all([...new Set(ids)].map(id=>setChecked(id,true)));}
