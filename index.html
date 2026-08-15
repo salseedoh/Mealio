@@ -228,29 +228,43 @@ if(!list.dataset.infoWired){
   });
 }
         list.innerHTML=''; const stores=new Map(); groceryItems.forEach(item=>{if(!stores.has(item.store_id))stores.set(item.store_id,[]);stores.get(item.store_id).push(item);});
-        [...stores.keys()].sort((a,b)=>{const an=storeNames.get(a)||'',bn=storeNames.get(b)||'',order={Walmart:0,Costco:1};return(order[an]??99)-(order[bn]??99)||an.localeCompare(bn);}).forEach(storeId=>{
-          const title=doc.createElement('li');title.className='master-section';title.textContent=storeNames.get(storeId)||'Store';list.append(title);
-          const storeItems=(children.get(0)||[]).filter(item=>item.store_id===storeId).sort((a,b)=>a.sort_order-b.sort_order);
+        [...stores.keys()].sort((a,b)=>{
+          const an=storeNames.get(a)||'';
+          const bn=storeNames.get(b)||'';
+          const order={Walmart:0,Costco:1};
+          return (order[an]??99)-(order[bn]??99)||an.localeCompare(bn);
+        }).forEach(storeId=>{
+          const title=doc.createElement('li');
+          title.className='master-section';
+          title.textContent=storeNames.get(storeId)||'Store';
+          list.append(title);
+
+          const storeItems=(children.get(0)||[])
+            .filter(item=>item.store_id===storeId)
+            .sort((a,b)=>a.sort_order-b.sort_order);
+
           let currentSection=null;
+
           storeItems.forEach(item=>{
             const section=item.section_name||null;
+
             if(section!==currentSection){
-              if(section){const sectionTitle=doc.createElement('li');sectionTitle.className='master-subsection';sectionTitle.textContent=section;list.append(sectionTitle);}
+              if(section){
+                const sectionTitle=doc.createElement('li');
+                sectionTitle.className='master-subsection';
+                sectionTitle.textContent=section;
+                list.append(sectionTitle);
+              }
+
               currentSection=section;
             }
+
             list.append(row(item));
           });
-storeItems.forEach(item=>{
-  const section=item.section_name||null;
-  if(section!==currentSection){
-    if(section){const sectionTitle=doc.createElement('li');sectionTitle.className='master-subsection';sectionTitle.textContent=section;list.append(sectionTitle);}
-    currentSection=section;
-  }
-  list.append(row(item));
-});
+        });
 
-updateEstimatedBill(doc);
-}
+        updateEstimatedBill(doc);
+      }
 
 function updateEstimatedBill(doc){
   const totalElement = doc.querySelector('#estimated-grocery-total');
