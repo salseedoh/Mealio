@@ -246,6 +246,111 @@ function show(recipe){
 <style>
   #gather-recipes .gr-nav{display:flex;gap:7px;margin-bottom:30px;border-bottom:1px solid var(--line);padding-bottom:14px}#gather-recipes .gr-nav button{border:1px solid var(--line);background:var(--paper);border-radius:2px;padding:9px 13px;color:var(--muted);font-size:12px;font-weight:600}#gather-recipes .gr-nav button.active{background:var(--ink);border-color:var(--ink);color:white}#gather-recipes .master-view{display:none;max-width:900px}#gather-recipes.list-view .layout{display:none}#gather-recipes.list-view .master-view{display:block}#gather-recipes .master-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}#gather-recipes .master-head p{color:var(--muted);font-size:13px;margin:7px 0 0;line-height:1.4}#gather-recipes .master-clear{border:0;background:none;color:var(--sage-dark);font-size:12px;text-decoration:underline;padding:0 0 5px;white-space:nowrap}.master-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line);columns:2;column-gap:38px}.master-list>li{break-inside:avoid;border-bottom:1px solid var(--line);padding:10px 0}.master-list label,.master-children label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px;line-height:1.3}.master-list input{accent-color:var(--orange);margin-top:2px}.master-children{list-style:none;margin:8px 0 0 26px;padding:0}.master-children li{padding:4px 0}.master-children label{font-size:12px;color:var(--muted)}.master-list .checked>label,.master-children .checked label{font-weight:700;opacity:1}.master-section{column-span:all;background:var(--ink);color:white;font:500 11px 'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;padding:9px 11px!important;margin-top:22px}.master-section:first-child{margin-top:0}.mindy-section{background:var(--sage-dark)}@media(max-width:620px){.master-list{columns:1}.master-head{align-items:flex-start;flex-direction:column}.master-clear{padding:0}}
 </style>
+
+<style>
+  .grocery-info-overlay{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    background:rgba(32,37,33,.65);
+  }
+
+  .grocery-info-modal{
+    width:min(420px,calc(100vw - 40px));
+    max-height:calc(100vh - 40px);
+    overflow:auto;
+    background:#fffdf8;
+    color:#202521;
+    border:1px solid #dcd9d0;
+    border-radius:8px;
+    padding:24px;
+    box-shadow:0 20px 70px rgba(0,0,0,.3);
+    font-family:'DM Sans',Arial,sans-serif;
+  }
+
+  .grocery-info-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:22px;
+  }
+
+  .grocery-info-header h3{
+    margin:0;
+    font:600 26px/1.1 'Playfair Display',Georgia,serif;
+  }
+
+  .grocery-info-close{
+    flex:0 0 auto;
+    width:32px;
+    height:32px;
+    border:0;
+    background:none;
+    color:#202521;
+    font-size:26px;
+    line-height:1;
+    cursor:pointer;
+    padding:0;
+  }
+
+  .grocery-info-content{
+    border-top:1px solid #dcd9d0;
+    padding-top:18px;
+  }
+
+  .grocery-info-field{
+    margin-bottom:18px;
+  }
+
+  .grocery-info-label{
+    display:block;
+    margin-bottom:5px;
+    font:500 10px 'DM Mono',monospace;
+    letter-spacing:1px;
+    color:#46604c;
+  }
+
+  .grocery-info-value{
+    font-size:15px;
+    line-height:1.5;
+  }
+
+  .grocery-quantity{
+    min-width:70px;
+    padding:7px 10px;
+    border:1px solid #dcd9d0;
+    background:#fff;
+    color:#202521;
+    font-size:14px;
+    border-radius:3px;
+  }
+
+  .grocery-info-button{
+    flex:0 0 auto;
+    border:1px solid #dcd9d0;
+    background:#fffdf8;
+    color:#46604c;
+    border-radius:50%;
+    width:24px;
+    height:24px;
+    padding:0;
+    display:grid;
+    place-items:center;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+  }
+
+  .grocery-info-button:hover{
+    background:#d9e4cf;
+  }
+</style>
+
 <div id="gr-extra"></div>
 <script>
 (async () => {
