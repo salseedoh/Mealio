@@ -19,13 +19,14 @@
     #gather-auth-card label{display:block;font-size:11px;margin:16px 0 6px;color:#46604c}
     #gather-auth-card input{width:100%;padding:11px;border:1px solid #dcd9d0;background:white;font-size:14px}
     #gather-auth-card button{margin-top:18px;width:100%;border:0;background:#202521;color:white;padding:12px;font-weight:600;cursor:pointer}
-    #gather-auth-status{min-height:18px;color:#b33;font-size:12px;margin-top:10px}
+    #gather-auth-status{min-height:18px;color:#b33;font-size:12px;margin-top:10px}#gather-auth-loading{font:600 16px Arial,sans-serif;color:#46604c}
   </style>
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
-  <div id="gather-auth" hidden>
-    <form id="gather-auth-card">
+  <div id="gather-auth">
+    <div id="gather-auth-loading" role="status" aria-live="polite">Loading Mealio…</div>
+    <form id="gather-auth-card" hidden>
       <h1>Good food,<br><em>made simple.</em></h1>
       <p>Sign in to access your Mealio grocery list and recipes.</p>
       <label for="gather-email">Email</label>
@@ -48,13 +49,15 @@
       const auth = document.querySelector('#gather-auth');
       const authForm = document.querySelector('#gather-auth-card');
       const authStatus = document.querySelector('#gather-auth-status');
-      let session = null, groceryItems = [], recipes = [], checklist = new Set(), recipeByTitle = new Map(), itemById = new Map(), itemByPath = new Map(), itemQuantities = new Map();
+      const authLoading = document.querySelector('#gather-auth-loading');
+      let session = null, appReady = false, appSyncPromise = null, groceryItems = [], recipes = [], checklist = new Set(), recipeByTitle = new Map(), itemById = new Map(), itemByPath = new Map(), itemQuantities = new Map();
       const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
       function frameDoc(){ return app.contentDocument; }
-      function showAuth(message=''){ auth.hidden=false; authStatus.textContent=message; }
+      function showAuth(message=''){ auth.hidden=false; authLoading.hidden=true; authForm.hidden=false; authStatus.textContent=message; }
+      function showLoading(message='Loading Mealio…'){ auth.hidden=false; authForm.hidden=true; authLoading.hidden=false; authLoading.textContent=message; }
       function hideAuth(){ auth.hidden=true; authStatus.textContent=''; }
       function showSaveError(message='Couldn’t save your change. Please try again.'){const doc=frameDoc();if(!doc)return;let notice=doc.querySelector('#gather-save-error');if(!notice){notice=doc.createElement('div');notice.id='gather-save-error';notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');notice.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:10000;padding:12px 14px;border-radius:6px;background:#202521;color:#fffdf8;font:13px Arial,sans-serif;box-shadow:0 8px 24px #0004';doc.body.append(notice);}notice.textContent=message;clearTimeout(showSaveError.timer);showSaveError.timer=setTimeout(()=>notice.remove(),5000);}
-      async function signIn(email,password){ const {data,error}=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; session=data.session; hideAuth(); await syncApp(); }
+      async function signIn(email,password){ const {data,error}=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; session=data.session; await prepareApp(); }
       authForm.addEventListener('submit',async event=>{ event.preventDefault(); authStatus.textContent='Signing in…'; try{ await signIn(document.querySelector('#gather-email').value.trim(),document.querySelector('#gather-password').value); }catch(error){ authStatus.textContent=error.message||'Unable to sign in.'; } });
       async function loadDatabase(){
         const results=await Promise.all([
@@ -352,10 +355,11 @@ async function setChecked(itemId,checked){
       function showRecipeFromDatabase(doc,recipe){const dialog=doc.querySelector('#gr-dialog'),detail=doc.querySelector('#gr-detail');if(!dialog||!detail)return;detail.innerHTML=`<p class="gr-kicker">${esc(recipe.type).toUpperCase()} · ${esc(recipe.time)}</p><h2>${esc(recipe.title)}</h2><div class="gr-columns"><section><h4>INGREDIENTS</h4>${recipe.groups.map(group=>`<div class="gr-group"><b>${esc(group.name)}</b><ul>${group.ingredients.map(i=>`<li>${esc([i.quantity,i.ingredient_text].filter(Boolean).join(' '))}</li>`).join('')}</ul></div>`).join('')}</section><section><h4>ASSEMBLY INSTRUCTIONS</h4><ol>${recipe.steps.map(step=>`<li>${esc(step.instruction)}</li>`).join('')}</ol></section></div>`;dialog.showModal();}
       async function addRecipeToMaster(recipe){const ids=recipe.groups.flatMap(group=>group.ingredients).map(i=>i.grocery_item_id).filter(Boolean);await Promise.all([...new Set(ids)].map(id=>setChecked(id,true)));}
       function wireFrame(){const doc=frameDoc();if(!doc)return;ensureFrameStructure(doc);buildMasterList(doc);renderRecipeData(doc);const clearButton=doc.querySelector('#master-clear');if(clearButton&&!clearButton.dataset.supabaseWired){clearButton.dataset.supabaseWired='1';clearButton.addEventListener('click',clearChecks);}if(!doc.documentElement.dataset.supabaseFrameWired){doc.documentElement.dataset.supabaseFrameWired='1';doc.addEventListener('click',event=>{const viewButton=event.target.closest('.card .view');if(viewButton){const card=viewButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe){event.preventDefault();event.stopImmediatePropagation();showRecipeFromDatabase(doc,recipe);}return;}const addButton=event.target.closest('.card .add');if(addButton){const card=addButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe){event.preventDefault();event.stopImmediatePropagation();addRecipeToMaster(recipe).then(()=>{addButton.innerHTML='Added <span>✓</span>';setTimeout(()=>{addButton.innerHTML='Add to list <span>+</span>';},1300);});}}},true);}}
-      async function syncApp(){try{await loadDatabase();wireFrame();}catch(error){console.error('Gather Supabase sync failed:',error);showAuth('Unable to load your Gather data. Please refresh and try again.');}}
-      app.addEventListener('load',()=>{if(session)wireFrame();});
-      supabase.auth.onAuthStateChange((_event,newSession)=>{session=newSession;if(session){hideAuth();syncApp();}else showAuth();});
-      (async()=>{const {data,error}=await supabase.auth.getSession();if(error){showAuth(error.message);return;}session=data.session;if(session){hideAuth();if(app.contentDocument?.readyState==='complete')await syncApp();}else showAuth();})();
+      async function syncApp(){await loadDatabase();wireFrame();}
+      async function prepareApp(){if(appSyncPromise)return appSyncPromise;showLoading();appSyncPromise=(async()=>{try{await syncApp();appReady=true;hideAuth();}catch(error){console.error('Gather Supabase sync failed:',error);showAuth('Unable to load your Gather data. Please refresh and try again.');}finally{appSyncPromise=null;}})();return appSyncPromise;}
+      app.addEventListener('load',()=>{if(session&&!appReady)prepareApp();});
+      supabase.auth.onAuthStateChange((_event,newSession)=>{session=newSession;if(session){if(!appReady)prepareApp();}else{appReady=false;showAuth();}});
+      (async()=>{const {data,error}=await supabase.auth.getSession();if(error){showAuth(error.message);return;}session=data.session;if(session)await prepareApp();else showAuth();})();
     })();
   </script>
 </body>
