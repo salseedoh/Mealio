@@ -19,7 +19,7 @@
     #gather-auth-card label{display:block;font-size:11px;margin:16px 0 6px;color:#46604c}
     #gather-auth-card input{width:100%;padding:11px;border:1px solid #dcd9d0;background:white;font-size:14px}
     #gather-auth-card button{margin-top:18px;width:100%;border:0;background:#202521;color:white;padding:12px;font-weight:600;cursor:pointer}
-    #gather-auth-status{min-height:18px;color:#b33;font-size:12px;margin-top:10px}#gather-auth-loading{font:600 16px Arial,sans-serif;color:#46604c}
+    #gather-auth-status{min-height:18px;color:#b33;font-size:12px;margin-top:10px}#gather-auth-loading{font:600 16px Arial,sans-serif;color:#46604c}#gather-recipes .grocery-item-row{display:flex;align-items:center;gap:28px;flex-wrap:wrap}#gather-recipes .grocery-item-row>label{flex:1;min-width:0}#gather-recipes .grocery-item-row>.grocery-info-button{flex:0 0 34px;width:34px;height:34px;border:0;background:transparent;padding:4px;display:grid;place-items:center}#gather-recipes .grocery-info-icon{display:block;width:22px;height:22px;object-fit:contain}#gather-recipes .grocery-item-row>.master-children{flex-basis:100%;width:100%}
   </style>
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
@@ -116,6 +116,7 @@
   const input=doc.createElement('input');
   const span=doc.createElement('span');
   const infoButton=doc.createElement('button');
+  const infoIcon=doc.createElement('img');
 
   li.className='grocery-item-row';
 
@@ -128,9 +129,13 @@
 
   infoButton.type='button';
   infoButton.className='grocery-info-button';
-  infoButton.textContent='ⓘ';
   infoButton.setAttribute('aria-label',`View information for ${item.name}`);
   infoButton.dataset.groceryInfoId=item.id;
+  infoIcon.className='grocery-info-icon';
+  infoIcon.src='info-icon.png';
+  infoIcon.alt='';
+  infoIcon.setAttribute('aria-hidden','true');
+  infoButton.append(infoIcon);
 
   label.append(input,span);
   li.append(label,infoButton);
