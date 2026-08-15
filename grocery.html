@@ -39,6 +39,8 @@
 <dialog class="gr-dialog" id="gr-dialog"><button class="gr-close" aria-label="Close recipe">×</button><div id="gr-detail"></div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+if (window.parent === window) {
+
   const sb = window.supabase.createClient(
   'https://bxqzzilkfdkndbwzavsi.supabase.co',
   'sb_publishable_6HU9u-7fO5PsfjEhcOnDFg_rKswZ-7i'
@@ -256,7 +258,9 @@ function show(recipe){
   `;
 
   dialog.showModal();
-}</script>
+}
+}
+</script>
 <style>#gather-recipes.list-view .hero{display:none}</style>
 <style>
   #gather-recipes .gr-nav{display:flex;gap:7px;margin-bottom:30px;border-bottom:1px solid var(--line);padding-bottom:14px}#gather-recipes .gr-nav button{border:1px solid var(--line);background:var(--paper);border-radius:2px;padding:9px 13px;color:var(--muted);font-size:12px;font-weight:600}#gather-recipes .gr-nav button.active{background:var(--ink);border-color:var(--ink);color:white}#gather-recipes .master-view{display:none;max-width:900px}#gather-recipes.list-view .layout{display:none}#gather-recipes.list-view .master-view{display:block}#gather-recipes .master-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}
@@ -378,6 +382,8 @@ function show(recipe){
 
 <div id="gr-extra"></div>
 <script>
+if (window.parent === window) {
+
 (async () => {
   const root=document.querySelector('#gather-recipes'), extra=document.querySelector('#gr-extra');root.prepend(extra);
 const { data: stores, error: storeError } = await sb
@@ -489,4 +495,6 @@ const sections = (stores || []).map(store => ({
 
   showList();
 })();
+
+}
 </script>
