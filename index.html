@@ -211,7 +211,7 @@ const quantitySelect=modal.querySelector('.grocery-quantity');
 
 quantitySelect.addEventListener('change',()=>{
   itemQuantities.set(item.id,Number(quantitySelect.value));
-  updateEstimatedBill(frameDoc());
+  updateEstimatedBill(doc);
 });
 }
 if(!list.dataset.infoWired){
@@ -252,11 +252,65 @@ storeItems.forEach(item=>{
 updateEstimatedBill(doc);
 }
 
+function updateEstimatedBill(doc){
+  const totalElement = doc.querySelector('#estimated-grocery-total');
+  if(!totalElement) return;
+
+  let total = 0;
+
+  groceryItems.forEach(item => {
+    if(!checklist.has(item.id)) return;
+    if(item.price === null || item.price === undefined || item.price === '') return;
+
+    const price = Number(item.price);
+    if(!Number.isFinite(price)) return;
+
+    const quantity = itemQuantities.get(item.id) || 1;
+    const taxable = String(item.tax || '').trim().toUpperCase() === 'Y';
+
+    const itemTotal = price * quantity * (taxable ? 1.0825 : 1);
+
+    total += itemTotal;
+  });
+
+  totalElement.textContent = `$${total.toFixed(2)}`;
+}
+
 async function setChecked(itemId,checked){
-        if(checked)checklist.add(itemId);else checklist.delete(itemId);
-        const result=checked?await supabase.from('grocery_checklist').upsert({user_id:session.user.id,grocery_item_id:itemId,checked:true,updated_at:new Date().toISOString()},{onConflict:'user_id,grocery_item_id'}):await supabase.from('grocery_checklist').delete().eq('user_id',session.user.id).eq('grocery_item_id',itemId);
-        if(result.error)console.error('Checklist sync failed:',result.error); buildMasterList(frameDoc());
-      }
+  if(checked) {
+    checklist.add(itemId);
+
+    if(!itemQuantities.has(itemId)){
+      itemQuantities.set(itemId,1);
+    }
+  } else {
+    checklist.delete(itemId);
+  }
+
+  const result = checked
+    ? await supabase
+        .from('grocery_checklist')
+        .upsert(
+          {
+            user_id:session.user.id,
+            grocery_item_id:itemId,
+            checked:true,
+            updated_at:new Date().toISOString()
+          },
+          {onConflict:'user_id,grocery_item_id'}
+        )
+    : await supabase
+        .from('grocery_checklist')
+        .delete()
+        .eq('user_id',session.user.id)
+        .eq('grocery_item_id',itemId);
+
+  if(result.error){
+    console.error('Checklist sync failed:',result.error);
+  }
+
+  buildMasterList(frameDoc());
+}
       async function clearChecks(){const {error}=await supabase.from('grocery_checklist').delete().eq('user_id',session.user.id);if(error){console.error('Clear checklist failed:',error);return;}checklist.clear();buildMasterList(frameDoc());}
       function renderRecipeData(doc){const cards=[...doc.querySelectorAll('#gr-grid .card')];recipes.forEach((recipe,index)=>{const card=cards[index];if(!card)return;const art=card.querySelector('.art span'),metaType=card.querySelector('.meta b'),metaTime=card.querySelector('.meta span'),title=card.querySelector('h3'),desc=card.querySelector('.desc');if(art)art.textContent=recipe.emoji||'🍽️';if(metaType)metaType.textContent=(recipe.type||'').toUpperCase();if(metaTime)metaTime.textContent=recipe.time||'';if(title)title.textContent=recipe.title;if(desc)desc.textContent=recipe.description||'';});}
       function showRecipeFromDatabase(doc,recipe){const dialog=doc.querySelector('#gr-dialog'),detail=doc.querySelector('#gr-detail');if(!dialog||!detail)return;detail.innerHTML=`<p class="gr-kicker">${esc(recipe.type).toUpperCase()} · ${esc(recipe.time)}</p><h2>${esc(recipe.title)}</h2><div class="gr-columns"><section><h4>INGREDIENTS</h4>${recipe.groups.map(group=>`<div class="gr-group"><b>${esc(group.name)}</b><ul>${group.ingredients.map(i=>`<li>${esc([i.quantity,i.ingredient_text].filter(Boolean).join(' '))}</li>`).join('')}</ul></div>`).join('')}</section><section><h4>ASSEMBLY INSTRUCTIONS</h4><ol>${recipe.steps.map(step=>`<li>${esc(step.instruction)}</li>`).join('')}</ol></section></div>`;dialog.showModal();}
