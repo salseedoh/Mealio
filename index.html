@@ -76,6 +76,28 @@
         recipeByTitle=new Map(recipes.map(recipe=>[recipe.title,recipe]));
         checklist=new Set((results[6].data||[]).filter(row=>row.checked).map(row=>row.grocery_item_id));
       }
+      function updateEstimatedBill(doc){
+  const totalElement=doc.querySelector('#estimated-grocery-total');
+  if(!totalElement)return;
+
+  let total=0;
+
+  groceryItems.forEach(item=>{
+    if(!checklist.has(item.id))return;
+
+    const price=Number(item.price);
+    if(!Number.isFinite(price))return;
+
+    const quantity=Number(itemQuantities.get(item.id)||1);
+    const taxable=String(item.tax??'').trim().toUpperCase()==='Y';
+
+    const itemTotal=price*quantity*(taxable?1.0825:1);
+    total+=itemTotal;
+  });
+
+  totalElement.textContent=`$${total.toFixed(2)}`;
+}
+      
       function buildMasterList(doc){
         const list=doc.querySelector('#master-list'); if(!list)return;
         const children=new Map(); groceryItems.forEach(item=>{if(!children.has(item.parent_id||0))children.set(item.parent_id||0,[]);children.get(item.parent_id||0).push(item);});
@@ -185,11 +207,12 @@
     if(event.target===overlay)close();
   });
 
-  const quantitySelect=modal.querySelector('.grocery-quantity');
+const quantitySelect=modal.querySelector('.grocery-quantity');
 
-  quantitySelect.addEventListener('change',()=>{
-    itemQuantities.set(item.id,Number(quantitySelect.value));
-  });
+quantitySelect.addEventListener('change',()=>{
+  itemQuantities.set(item.id,Number(quantitySelect.value));
+  updateEstimatedBill(frameDoc());
+});
 }
 if(!list.dataset.infoWired){
   list.dataset.infoWired='1';
@@ -217,9 +240,19 @@ if(!list.dataset.infoWired){
             }
             list.append(row(item));
           });
-        });
-      }
-      async function setChecked(itemId,checked){
+storeItems.forEach(item=>{
+  const section=item.section_name||null;
+  if(section!==currentSection){
+    if(section){const sectionTitle=doc.createElement('li');sectionTitle.className='master-subsection';sectionTitle.textContent=section;list.append(sectionTitle);}
+    currentSection=section;
+  }
+  list.append(row(item));
+});
+
+updateEstimatedBill(doc);
+}
+
+async function setChecked(itemId,checked){
         if(checked)checklist.add(itemId);else checklist.delete(itemId);
         const result=checked?await supabase.from('grocery_checklist').upsert({user_id:session.user.id,grocery_item_id:itemId,checked:true,updated_at:new Date().toISOString()},{onConflict:'user_id,grocery_item_id'}):await supabase.from('grocery_checklist').delete().eq('user_id',session.user.id).eq('grocery_item_id',itemId);
         if(result.error)console.error('Checklist sync failed:',result.error); buildMasterList(frameDoc());
