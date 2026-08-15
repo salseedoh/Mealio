@@ -455,6 +455,21 @@ const sections = (stores || []).map(store => ({
 
   await loadRecipes();
   renderRecipes();
-  root.classList.add('list-view');
+  function showList(){
+    root.classList.add('list-view');
+    document.querySelector('#gr-show-list').classList.add('active');
+    document.querySelector('#gr-show-recipes').classList.remove('active');
+  }
+
+  function showRecipes(){
+    root.classList.remove('list-view');
+    document.querySelector('#gr-show-recipes').classList.add('active');
+    document.querySelector('#gr-show-list').classList.remove('active');
+  }
+
+  document.querySelector('#gr-show-list').onclick = showList;
+  document.querySelector('#gr-show-recipes').onclick = showRecipes;
+
+  showList();
 })();
 </script>
