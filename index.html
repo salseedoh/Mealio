@@ -53,6 +53,7 @@
       function frameDoc(){ return app.contentDocument; }
       function showAuth(message=''){ auth.hidden=false; authStatus.textContent=message; }
       function hideAuth(){ auth.hidden=true; authStatus.textContent=''; }
+      function showSaveError(message='Couldn’t save your change. Please try again.'){const doc=frameDoc();if(!doc)return;let notice=doc.querySelector('#gather-save-error');if(!notice){notice=doc.createElement('div');notice.id='gather-save-error';notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');notice.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:10000;padding:12px 14px;border-radius:6px;background:#202521;color:#fffdf8;font:13px Arial,sans-serif;box-shadow:0 8px 24px #0004';doc.body.append(notice);}notice.textContent=message;clearTimeout(showSaveError.timer);showSaveError.timer=setTimeout(()=>notice.remove(),5000);}
       async function signIn(email,password){ const {data,error}=await supabase.auth.signInWithPassword({email,password}); if(error) throw error; session=data.session; hideAuth(); await syncApp(); }
       authForm.addEventListener('submit',async event=>{ event.preventDefault(); authStatus.textContent='Signing in…'; try{ await signIn(document.querySelector('#gather-email').value.trim(),document.querySelector('#gather-password').value); }catch(error){ authStatus.textContent=error.message||'Unable to sign in.'; } });
       async function loadDatabase(){
@@ -233,6 +234,7 @@ quantitySelect.addEventListener('change',async ()=>{
     console.error('Quantity update failed:',error);
     itemQuantities.set(item.id,previousQuantity);
     quantitySelect.value=String(previousQuantity);
+    showSaveError();
     return;
   }
 
@@ -316,15 +318,16 @@ function updateEstimatedBill(doc){
 }
 
 async function setChecked(itemId,checked){
+  const wasChecked=checklist.has(itemId);
+
   if(checked) {
     checklist.add(itemId);
-
-    if(!itemQuantities.has(itemId)){
-      itemQuantities.set(itemId,1);
-    }
+    if(!itemQuantities.has(itemId)) itemQuantities.set(itemId,1);
   } else {
     checklist.delete(itemId);
   }
+
+  buildMasterList(frameDoc());
 
   const result = await supabase
     .from('grocery_checklist')
@@ -338,11 +341,12 @@ async function setChecked(itemId,checked){
 
   if(result.error){
     console.error('Checklist sync failed:',result.error);
+    if(wasChecked) checklist.add(itemId); else checklist.delete(itemId);
+    buildMasterList(frameDoc());
+    showSaveError();
   }
-
-  buildMasterList(frameDoc());
 }
-      async function clearChecks(){const {error}=await supabase.from('grocery_checklist').update({checked:false,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('checked',true);if(error){console.error('Clear checklist failed:',error);return;}checklist.clear();buildMasterList(frameDoc());}
+      async function clearChecks(){const {error}=await supabase.from('grocery_checklist').update({checked:false,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('checked',true);if(error){console.error('Clear checklist failed:',error);showSaveError();return;}checklist.clear();buildMasterList(frameDoc());}
       function renderRecipeData(doc){const cards=[...doc.querySelectorAll('#gr-grid .card')];recipes.forEach((recipe,index)=>{const card=cards[index];if(!card)return;const art=card.querySelector('.art span'),metaType=card.querySelector('.meta b'),metaTime=card.querySelector('.meta span'),title=card.querySelector('h3'),desc=card.querySelector('.desc');if(art)art.textContent=recipe.emoji||'🍽️';if(metaType)metaType.textContent=(recipe.type||'').toUpperCase();if(metaTime)metaTime.textContent=recipe.time||'';if(title)title.textContent=recipe.title;if(desc)desc.textContent=recipe.description||'';});}
       function showRecipeFromDatabase(doc,recipe){const dialog=doc.querySelector('#gr-dialog'),detail=doc.querySelector('#gr-detail');if(!dialog||!detail)return;detail.innerHTML=`<p class="gr-kicker">${esc(recipe.type).toUpperCase()} · ${esc(recipe.time)}</p><h2>${esc(recipe.title)}</h2><div class="gr-columns"><section><h4>INGREDIENTS</h4>${recipe.groups.map(group=>`<div class="gr-group"><b>${esc(group.name)}</b><ul>${group.ingredients.map(i=>`<li>${esc([i.quantity,i.ingredient_text].filter(Boolean).join(' '))}</li>`).join('')}</ul></div>`).join('')}</section><section><h4>ASSEMBLY INSTRUCTIONS</h4><ol>${recipe.steps.map(step=>`<li>${esc(step.instruction)}</li>`).join('')}</ol></section></div>`;dialog.showModal();}
       async function addRecipeToMaster(recipe){const ids=recipe.groups.flatMap(group=>group.ingredients).map(i=>i.grocery_item_id).filter(Boolean);await Promise.all([...new Set(ids)].map(id=>setChecked(id,true)));}
