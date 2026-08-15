@@ -194,8 +194,6 @@ function add(recipe, button){
     }
   });
 
-  renderMasterList();
-
   button.innerHTML='Added <span>✓</span>';
 
   setTimeout(()=>{
@@ -422,14 +420,6 @@ const sections = (stores || []).map(store => ({
     <button class="master-clear" id="master-clear">Clear all checks</button>
   </div>
 </div><ul class="master-list" id="master-list"></ul></section>`;
-  const list=document.querySelector('#master-list');
-  const key=(parent,name)=>parent?`${parent} / ${name}`:name;
-  function makeRow(name,id,children){const li=document.createElement('li'),label=document.createElement('label'),input=document.createElement('input'),span=document.createElement('span');input.type='checkbox';input.dataset.id=id;span.textContent=name;label.append(input,span);li.append(label);input.onchange=()=>{input.checked?checked.add(id):checked.delete(id);renderMasterList()};if(children){const nested=document.createElement('ul');nested.className='master-children';children.forEach(child=>nested.append(makeRow(child,key(id,child))));li.append(nested)}return li}
-  function renderMasterList(){list.innerHTML='';sections.forEach(section=>{const title=document.createElement('li');title.className='master-section';title.textContent=section.name;list.append(title);section.items.forEach(item=>{if(item.section){const sub=document.createElement('li');sub.className='master-section mindy-section';sub.textContent=item.section;list.append(sub);item.items.forEach(child=>list.append(makeRow(child,key(key(section.name,item.section),child))));}else if(typeof item==='string')list.append(makeRow(item,key(section.name,item)));else list.append(makeRow(item.name,key(section.name,item.name),item.children))})});list.querySelectorAll('input').forEach(input=>{input.checked=checked.has(input.dataset.id);input.closest('li').classList.toggle('checked',input.checked)})}
-  window.renderMasterList = renderMasterList;
-  function showList(){root.classList.add('list-view');document.querySelector('#gr-show-list').classList.add('active');document.querySelector('#gr-show-recipes').classList.remove('active')}function showRecipes(){root.classList.remove('list-view');document.querySelector('#gr-show-recipes').classList.add('active');document.querySelector('#gr-show-list').classList.remove('active')}
-  document.querySelector('#gr-show-list').onclick=showList;document.querySelector('#gr-show-recipes').onclick=showRecipes;document.querySelector('#master-clear').onclick=()=>{checked.clear();renderMasterList()};
-  renderMasterList();
 
   items.forEach(item => {
     if (item.parent_id) {
@@ -465,6 +455,6 @@ const sections = (stores || []).map(store => ({
 
   await loadRecipes();
   renderRecipes();
-  showList();
+  root.classList.add('list-view');
 })();
 </script>
