@@ -31,7 +31,7 @@
 
 <div id="gather-recipes">
   <section class="hero">
-<a class="manage-button" href="manage.html" aria-label="Manage Mealio">⚙</a>
+<a class="manage-button" href="manage.html" target="_top" aria-label="Manage Mealio">⚙</a>
 <p class="eyebrow">MY KITCHEN NOTEBOOK</p>
 <h1>Good food,<br><em>made simple.</em></h1><p class="intro">A small collection of recipes worth making on repeat. Add a recipe’s ingredients to your list when you’re ready to cook.</p></section>
   <div class="layout"><section><div class="heading"><div><p class="eyebrow">COOK THIS WEEK</p><h2>Recipes</h2></div></div><div class="grid" id="gr-grid"></div></section><aside class="list"><div class="list-heading"><div><p class="eyebrow">SHOPPING COMPANION</p><h2>Grocery list</h2></div><span class="total" id="gr-total">0 items</span></div><div class="empty" id="gr-empty"><i>⌑</i><p>Your list is waiting.</p><small>Add ingredients from a recipe to get started.</small></div><ul class="items" id="gr-items"></ul><div class="list-actions"><button class="clear" id="gr-clear" hidden>Clear completed</button><button class="clear clear-all" id="gr-clear-all" hidden>Clear grocery list</button></div><div class="note"><b>Pantry note</b><p>Check your staples before you shop.</p></div></aside></div>
@@ -46,12 +46,22 @@
 let recipes = [];
 
 async function loadRecipes() {
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (!session) {
+    console.error('No authenticated Supabase session found.');
+    return;
+  }
+
+  const userId = session.user.id;
+
   const { data: recipeRows, error: recipeError } = await sb
     .from('recipes')
     .select('*')
+    .eq('user_id', userId)
     .eq('active', true)
     .order('sort_order');
-
+  
   if (recipeError) {
     console.error('Error loading recipes:', recipeError);
     return;
@@ -141,7 +151,14 @@ checked=new Set();
 document.querySelector('.gr-close').onclick = () => {
   dialog.close();
 };  
-const groceryItemKeyById = new Map();
+function key(...parts){
+  return parts
+    .filter(part => part !== null && part !== undefined && String(part).trim() !== '')
+    .map(part => String(part).trim())
+    .join(' / ');
+}
+
+  const groceryItemKeyById = new Map();
 function renderRecipes(){
   grid.innerHTML='';
 
@@ -194,8 +211,6 @@ function add(recipe, button){
     }
   });
 
-  renderMasterList();
-
   button.innerHTML='Added <span>✓</span>';
 
   setTimeout(()=>{
@@ -244,8 +259,123 @@ function show(recipe){
 }</script>
 <style>#gather-recipes.list-view .hero{display:none}</style>
 <style>
-  #gather-recipes .gr-nav{display:flex;gap:7px;margin-bottom:30px;border-bottom:1px solid var(--line);padding-bottom:14px}#gather-recipes .gr-nav button{border:1px solid var(--line);background:var(--paper);border-radius:2px;padding:9px 13px;color:var(--muted);font-size:12px;font-weight:600}#gather-recipes .gr-nav button.active{background:var(--ink);border-color:var(--ink);color:white}#gather-recipes .master-view{display:none;max-width:900px}#gather-recipes.list-view .layout{display:none}#gather-recipes.list-view .master-view{display:block}#gather-recipes .master-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}#gather-recipes .master-head p{color:var(--muted);font-size:13px;margin:7px 0 0;line-height:1.4}#gather-recipes .master-clear{border:0;background:none;color:var(--sage-dark);font-size:12px;text-decoration:underline;padding:0 0 5px;white-space:nowrap}.master-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line);columns:2;column-gap:38px}.master-list>li{break-inside:avoid;border-bottom:1px solid var(--line);padding:10px 0}.master-list label,.master-children label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px;line-height:1.3}.master-list input{accent-color:var(--orange);margin-top:2px}.master-children{list-style:none;margin:8px 0 0 26px;padding:0}.master-children li{padding:4px 0}.master-children label{font-size:12px;color:var(--muted)}.master-list .checked>label,.master-children .checked label{font-weight:700;opacity:1}.master-section{column-span:all;background:var(--ink);color:white;font:500 11px 'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;padding:9px 11px!important;margin-top:22px}.master-section:first-child{margin-top:0}.mindy-section{background:var(--sage-dark)}@media(max-width:620px){.master-list{columns:1}.master-head{align-items:flex-start;flex-direction:column}.master-clear{padding:0}}
+  #gather-recipes .gr-nav{display:flex;gap:7px;margin-bottom:30px;border-bottom:1px solid var(--line);padding-bottom:14px}#gather-recipes .gr-nav button{border:1px solid var(--line);background:var(--paper);border-radius:2px;padding:9px 13px;color:var(--muted);font-size:12px;font-weight:600}#gather-recipes .gr-nav button.active{background:var(--ink);border-color:var(--ink);color:white}#gather-recipes .master-view{display:none;max-width:900px}#gather-recipes.list-view .layout{display:none}#gather-recipes.list-view .master-view{display:block}#gather-recipes .master-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}
+#gather-recipes .master-head-right{display:flex;align-items:end;gap:24px}
+#gather-recipes .estimated-bill{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+#gather-recipes .estimated-bill-label{font:500 10px 'DM Mono',monospace;letter-spacing:1px;color:var(--sage-dark)}
+#gather-recipes .estimated-bill-total{font:600 24px 'Playfair Display',Georgia,serif;color:var(--ink)}#gather-recipes .master-head p{color:var(--muted);font-size:13px;margin:7px 0 0;line-height:1.4}#gather-recipes .master-clear{border:0;background:none;color:var(--sage-dark);font-size:12px;text-decoration:underline;padding:0 0 5px;white-space:nowrap}.master-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line);columns:2;column-gap:38px}.master-list>li{break-inside:avoid;border-bottom:1px solid var(--line);padding:10px 0}.master-list label,.master-children label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px;line-height:1.3}.master-list input{accent-color:var(--orange);margin-top:2px}.master-children{list-style:none;margin:8px 0 0 26px;padding:0}.master-children li{padding:4px 0}.master-children label{font-size:12px;color:var(--muted)}.master-list .checked>label,.master-children .checked label{font-weight:700;opacity:1}.master-section{column-span:all;background:var(--ink);color:white;font:500 11px 'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;padding:9px 11px!important;margin-top:22px}.master-section:first-child{margin-top:0}.mindy-section{background:var(--sage-dark)}@media(max-width:620px){
+  .master-list{columns:1}
+  .master-head{align-items:flex-start;flex-direction:column}
+  .master-head-right{width:100%;align-items:flex-start;flex-direction:column;gap:12px}
+  .estimated-bill{align-items:flex-start}
+  .master-clear{padding:0}
+}
 </style>
+
+<style>
+  .grocery-info-overlay{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    background:rgba(32,37,33,.65);
+  }
+
+  .grocery-info-modal{
+    width:min(420px,calc(100vw - 40px));
+    max-height:calc(100vh - 40px);
+    overflow:auto;
+    background:#fffdf8;
+    color:#202521;
+    border:1px solid #dcd9d0;
+    border-radius:8px;
+    padding:24px;
+    box-shadow:0 20px 70px rgba(0,0,0,.3);
+    font-family:'DM Sans',Arial,sans-serif;
+  }
+
+  .grocery-info-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:22px;
+  }
+
+  .grocery-info-header h3{
+    margin:0;
+    font:600 26px/1.1 'Playfair Display',Georgia,serif;
+  }
+
+  .grocery-info-close{
+    flex:0 0 auto;
+    width:32px;
+    height:32px;
+    border:0;
+    background:none;
+    color:#202521;
+    font-size:26px;
+    line-height:1;
+    cursor:pointer;
+    padding:0;
+  }
+
+  .grocery-info-content{
+    border-top:1px solid #dcd9d0;
+    padding-top:18px;
+  }
+
+  .grocery-info-field{
+    margin-bottom:18px;
+  }
+
+  .grocery-info-label{
+    display:block;
+    margin-bottom:5px;
+    font:500 10px 'DM Mono',monospace;
+    letter-spacing:1px;
+    color:#46604c;
+  }
+
+  .grocery-info-value{
+    font-size:15px;
+    line-height:1.5;
+  }
+
+  .grocery-quantity{
+    min-width:70px;
+    padding:7px 10px;
+    border:1px solid #dcd9d0;
+    background:#fff;
+    color:#202521;
+    font-size:14px;
+    border-radius:3px;
+  }
+
+  .grocery-info-button{
+    flex:0 0 auto;
+    border:1px solid #dcd9d0;
+    background:#fffdf8;
+    color:#46604c;
+    border-radius:50%;
+    width:24px;
+    height:24px;
+    padding:0;
+    display:grid;
+    place-items:center;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+  }
+
+  .grocery-info-button:hover{
+    background:#d9e4cf;
+  }
+</style>
+
 <div id="gr-extra"></div>
 <script>
 (async () => {
@@ -291,15 +421,22 @@ const sections = (stores || []).map(store => ({
     })
     .filter(Boolean)
 }));
-  extra.innerHTML=`<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head"><div><p class="eyebrow">MASTER SHOPPING LIST</p><h2>Grocery Checklist</h2><p>Items stay unchecked until you select them or add a recipe.</p></div><button class="master-clear" id="master-clear">Clear all checks</button></div><ul class="master-list" id="master-list"></ul></section>`;
-  const list=document.querySelector('#master-list');
-  const key=(parent,name)=>parent?`${parent} / ${name}`:name;
-  function makeRow(name,id,children){const li=document.createElement('li'),label=document.createElement('label'),input=document.createElement('input'),span=document.createElement('span');input.type='checkbox';input.dataset.id=id;span.textContent=name;label.append(input,span);li.append(label);input.onchange=()=>{input.checked?checked.add(id):checked.delete(id);renderMasterList()};if(children){const nested=document.createElement('ul');nested.className='master-children';children.forEach(child=>nested.append(makeRow(child,key(id,child))));li.append(nested)}return li}
-  function renderMasterList(){list.innerHTML='';sections.forEach(section=>{const title=document.createElement('li');title.className='master-section';title.textContent=section.name;list.append(title);section.items.forEach(item=>{if(item.section){const sub=document.createElement('li');sub.className='master-section mindy-section';sub.textContent=item.section;list.append(sub);item.items.forEach(child=>list.append(makeRow(child,key(key(section.name,item.section),child))));}else if(typeof item==='string')list.append(makeRow(item,key(section.name,item)));else list.append(makeRow(item.name,key(section.name,item.name),item.children))})});list.querySelectorAll('input').forEach(input=>{input.checked=checked.has(input.dataset.id);input.closest('li').classList.toggle('checked',input.checked)})}
-  window.renderMasterList = renderMasterList;
-  function showList(){root.classList.add('list-view');document.querySelector('#gr-show-list').classList.add('active');document.querySelector('#gr-show-recipes').classList.remove('active')}function showRecipes(){root.classList.remove('list-view');document.querySelector('#gr-show-recipes').classList.add('active');document.querySelector('#gr-show-list').classList.remove('active')}
-  document.querySelector('#gr-show-list').onclick=showList;document.querySelector('#gr-show-recipes').onclick=showRecipes;document.querySelector('#master-clear').onclick=()=>{checked.clear();renderMasterList()};
-  renderMasterList();
+  extra.innerHTML=`<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head">
+  <div>
+    <p class="eyebrow">MASTER SHOPPING LIST</p>
+    <h2>Grocery Checklist</h2>
+    <p>Items stay unchecked until you select them or add a recipe.</p>
+  </div>
+
+  <div class="master-head-right">
+    <div class="estimated-bill">
+      <span class="estimated-bill-label">ESTIMATED GROCERY BILL</span>
+      <span class="estimated-bill-total" id="estimated-grocery-total">$0.00</span>
+    </div>
+
+    <button class="master-clear" id="master-clear">Clear all checks</button>
+  </div>
+</div><ul class="master-list" id="master-list"></ul></section>`;
 
   items.forEach(item => {
     if (item.parent_id) {
@@ -335,6 +472,21 @@ const sections = (stores || []).map(store => ({
 
   await loadRecipes();
   renderRecipes();
+  function showList(){
+    root.classList.add('list-view');
+    document.querySelector('#gr-show-list').classList.add('active');
+    document.querySelector('#gr-show-recipes').classList.remove('active');
+  }
+
+  function showRecipes(){
+    root.classList.remove('list-view');
+    document.querySelector('#gr-show-recipes').classList.add('active');
+    document.querySelector('#gr-show-list').classList.remove('active');
+  }
+
+  document.querySelector('#gr-show-list').onclick = showList;
+  document.querySelector('#gr-show-recipes').onclick = showRecipes;
+
   showList();
 })();
 </script>
