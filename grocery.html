@@ -46,12 +46,22 @@
 let recipes = [];
 
 async function loadRecipes() {
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (!session) {
+    console.error('No authenticated Supabase session found.');
+    return;
+  }
+
+  const userId = session.user.id;
+
   const { data: recipeRows, error: recipeError } = await sb
     .from('recipes')
     .select('*')
+    .eq('user_id', userId)
     .eq('active', true)
     .order('sort_order');
-
+  
   if (recipeError) {
     console.error('Error loading recipes:', recipeError);
     return;
@@ -60,6 +70,7 @@ async function loadRecipes() {
   const { data: groupRows, error: groupError } = await sb
     .from('recipe_groups')
     .select('*')
+    .eq('user_id', userId)
     .order('sort_order');
 
   if (groupError) {
@@ -70,6 +81,7 @@ async function loadRecipes() {
   const { data: ingredientRows, error: ingredientError } = await sb
     .from('recipe_ingredients')
     .select('*')
+    .eq('user_id', userId)
     .order('sort_order');
 
   if (ingredientError) {
@@ -80,6 +92,7 @@ async function loadRecipes() {
   const { data: stepRows, error: stepError } = await sb
     .from('recipe_steps')
     .select('*')
+    .eq('user_id', userId)
     .order('step_number');
 
   if (stepError) {
