@@ -70,7 +70,6 @@ async function loadRecipes() {
   const { data: groupRows, error: groupError } = await sb
     .from('recipe_groups')
     .select('*')
-    .eq('user_id', userId)
     .order('sort_order');
 
   if (groupError) {
@@ -81,7 +80,6 @@ async function loadRecipes() {
   const { data: ingredientRows, error: ingredientError } = await sb
     .from('recipe_ingredients')
     .select('*')
-    .eq('user_id', userId)
     .order('sort_order');
 
   if (ingredientError) {
@@ -92,7 +90,6 @@ async function loadRecipes() {
   const { data: stepRows, error: stepError } = await sb
     .from('recipe_steps')
     .select('*')
-    .eq('user_id', userId)
     .order('step_number');
 
   if (stepError) {
