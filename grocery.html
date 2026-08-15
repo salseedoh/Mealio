@@ -244,7 +244,17 @@ function show(recipe){
 }</script>
 <style>#gather-recipes.list-view .hero{display:none}</style>
 <style>
-  #gather-recipes .gr-nav{display:flex;gap:7px;margin-bottom:30px;border-bottom:1px solid var(--line);padding-bottom:14px}#gather-recipes .gr-nav button{border:1px solid var(--line);background:var(--paper);border-radius:2px;padding:9px 13px;color:var(--muted);font-size:12px;font-weight:600}#gather-recipes .gr-nav button.active{background:var(--ink);border-color:var(--ink);color:white}#gather-recipes .master-view{display:none;max-width:900px}#gather-recipes.list-view .layout{display:none}#gather-recipes.list-view .master-view{display:block}#gather-recipes .master-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}#gather-recipes .master-head p{color:var(--muted);font-size:13px;margin:7px 0 0;line-height:1.4}#gather-recipes .master-clear{border:0;background:none;color:var(--sage-dark);font-size:12px;text-decoration:underline;padding:0 0 5px;white-space:nowrap}.master-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line);columns:2;column-gap:38px}.master-list>li{break-inside:avoid;border-bottom:1px solid var(--line);padding:10px 0}.master-list label,.master-children label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px;line-height:1.3}.master-list input{accent-color:var(--orange);margin-top:2px}.master-children{list-style:none;margin:8px 0 0 26px;padding:0}.master-children li{padding:4px 0}.master-children label{font-size:12px;color:var(--muted)}.master-list .checked>label,.master-children .checked label{font-weight:700;opacity:1}.master-section{column-span:all;background:var(--ink);color:white;font:500 11px 'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;padding:9px 11px!important;margin-top:22px}.master-section:first-child{margin-top:0}.mindy-section{background:var(--sage-dark)}@media(max-width:620px){.master-list{columns:1}.master-head{align-items:flex-start;flex-direction:column}.master-clear{padding:0}}
+  #gather-recipes .gr-nav{display:flex;gap:7px;margin-bottom:30px;border-bottom:1px solid var(--line);padding-bottom:14px}#gather-recipes .gr-nav button{border:1px solid var(--line);background:var(--paper);border-radius:2px;padding:9px 13px;color:var(--muted);font-size:12px;font-weight:600}#gather-recipes .gr-nav button.active{background:var(--ink);border-color:var(--ink);color:white}#gather-recipes .master-view{display:none;max-width:900px}#gather-recipes.list-view .layout{display:none}#gather-recipes.list-view .master-view{display:block}#gather-recipes .master-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}
+#gather-recipes .master-head-right{display:flex;align-items:end;gap:24px}
+#gather-recipes .estimated-bill{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+#gather-recipes .estimated-bill-label{font:500 10px 'DM Mono',monospace;letter-spacing:1px;color:var(--sage-dark)}
+#gather-recipes .estimated-bill-total{font:600 24px 'Playfair Display',Georgia,serif;color:var(--ink)}#gather-recipes .master-head p{color:var(--muted);font-size:13px;margin:7px 0 0;line-height:1.4}#gather-recipes .master-clear{border:0;background:none;color:var(--sage-dark);font-size:12px;text-decoration:underline;padding:0 0 5px;white-space:nowrap}.master-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line);columns:2;column-gap:38px}.master-list>li{break-inside:avoid;border-bottom:1px solid var(--line);padding:10px 0}.master-list label,.master-children label{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px;line-height:1.3}.master-list input{accent-color:var(--orange);margin-top:2px}.master-children{list-style:none;margin:8px 0 0 26px;padding:0}.master-children li{padding:4px 0}.master-children label{font-size:12px;color:var(--muted)}.master-list .checked>label,.master-children .checked label{font-weight:700;opacity:1}.master-section{column-span:all;background:var(--ink);color:white;font:500 11px 'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;padding:9px 11px!important;margin-top:22px}.master-section:first-child{margin-top:0}.mindy-section{background:var(--sage-dark)}@media(max-width:620px){
+  .master-list{columns:1}
+  .master-head{align-items:flex-start;flex-direction:column}
+  .master-head-right{width:100%;align-items:flex-start;flex-direction:column;gap:12px}
+  .estimated-bill{align-items:flex-start}
+  .master-clear{padding:0}
+}
 </style>
 
 <style>
@@ -396,7 +406,22 @@ const sections = (stores || []).map(store => ({
     })
     .filter(Boolean)
 }));
-  extra.innerHTML=`<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head"><div><p class="eyebrow">MASTER SHOPPING LIST</p><h2>Grocery Checklist</h2><p>Items stay unchecked until you select them or add a recipe.</p></div><button class="master-clear" id="master-clear">Clear all checks</button></div><ul class="master-list" id="master-list"></ul></section>`;
+  extra.innerHTML=`<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head">
+  <div>
+    <p class="eyebrow">MASTER SHOPPING LIST</p>
+    <h2>Grocery Checklist</h2>
+    <p>Items stay unchecked until you select them or add a recipe.</p>
+  </div>
+
+  <div class="master-head-right">
+    <div class="estimated-bill">
+      <span class="estimated-bill-label">ESTIMATED GROCERY BILL</span>
+      <span class="estimated-bill-total" id="estimated-grocery-total">$0.00</span>
+    </div>
+
+    <button class="master-clear" id="master-clear">Clear all checks</button>
+  </div>
+</div><ul class="master-list" id="master-list"></ul></section>`;
   const list=document.querySelector('#master-list');
   const key=(parent,name)=>parent?`${parent} / ${name}`:name;
   function makeRow(name,id,children){const li=document.createElement('li'),label=document.createElement('label'),input=document.createElement('input'),span=document.createElement('span');input.type='checkbox';input.dataset.id=id;span.textContent=name;label.append(input,span);li.append(label);input.onchange=()=>{input.checked?checked.add(id):checked.delete(id);renderMasterList()};if(children){const nested=document.createElement('ul');nested.className='master-children';children.forEach(child=>nested.append(makeRow(child,key(id,child))));li.append(nested)}return li}
