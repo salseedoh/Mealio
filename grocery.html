@@ -141,7 +141,14 @@ checked=new Set();
 document.querySelector('.gr-close').onclick = () => {
   dialog.close();
 };  
-const groceryItemKeyById = new Map();
+function key(...parts){
+  return parts
+    .filter(part => part !== null && part !== undefined && String(part).trim() !== '')
+    .map(part => String(part).trim())
+    .join(' / ');
+}
+
+  const groceryItemKeyById = new Map();
 function renderRecipes(){
   grid.innerHTML='';
 
