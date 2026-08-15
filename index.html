@@ -63,7 +63,7 @@
           supabase.from('recipe_groups').select('id,recipe_id,name,sort_order').order('sort_order'),
           supabase.from('recipe_ingredients').select('id,recipe_id,group_id,grocery_item_id,quantity,ingredient_text,sort_order').order('sort_order'),
           supabase.from('recipe_steps').select('id,recipe_id,step_number,instruction').order('step_number'),
-          supabase.from('grocery_checklist').select('grocery_item_id,checked').eq('user_id',session.user.id)
+          supabase.from('grocery_checklist').select('grocery_item_id,checked,quantity').eq('user_id',session.user.id)
         ]);
         results.forEach(result=>{if(result.error) throw result.error;});
         const stores=results[0].data||[]; groceryItems=results[1].data||[]; itemById=new Map(groceryItems.map(item=>[item.id,item]));
@@ -75,6 +75,11 @@
         recipes=(results[2].data||[]).map(recipe=>({...recipe,groups:(groupsByRecipe.get(recipe.id)||[]).sort((a,b)=>a.sort_order-b.sort_order),steps:steps.filter(step=>step.recipe_id===recipe.id).sort((a,b)=>a.step_number-b.step_number)}));
         recipeByTitle=new Map(recipes.map(recipe=>[recipe.title,recipe]));
         checklist=new Set((results[6].data||[]).filter(row=>row.checked).map(row=>row.grocery_item_id));
+        itemQuantities = new Map(
+  (results[6].data || [])
+    .filter(row => row.checked)
+    .map(row => [row.grocery_item_id, Number(row.quantity) || 1])
+);
       }
       function updateEstimatedBill(doc){
   const totalElement=doc.querySelector('#estimated-grocery-total');
@@ -209,8 +214,25 @@
 
 const quantitySelect=modal.querySelector('.grocery-quantity');
 
-quantitySelect.addEventListener('change',()=>{
-  itemQuantities.set(item.id,Number(quantitySelect.value));
+quantitySelect.addEventListener('change',async ()=>{
+  const quantity=Number(quantitySelect.value)||1;
+
+  itemQuantities.set(item.id,quantity);
+
+  const {error}=await supabase
+    .from('grocery_checklist')
+    .update({
+      quantity:quantity,
+      updated_at:new Date().toISOString()
+    })
+    .eq('user_id',session.user.id)
+    .eq('grocery_item_id',item.id);
+
+  if(error){
+    console.error('Quantity update failed:',error);
+    return;
+  }
+
   updateEstimatedBill(doc);
 });
 }
@@ -306,11 +328,12 @@ async function setChecked(itemId,checked){
         .from('grocery_checklist')
         .upsert(
           {
-            user_id:session.user.id,
-            grocery_item_id:itemId,
-            checked:true,
-            updated_at:new Date().toISOString()
-          },
+  user_id:session.user.id,
+  grocery_item_id:itemId,
+  checked:true,
+  quantity:Number(itemQuantities.get(itemId)) || 1,
+  updated_at:new Date().toISOString()
+}
           {onConflict:'user_id,grocery_item_id'}
         )
     : await supabase
