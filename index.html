@@ -191,15 +191,19 @@
     itemQuantities.set(item.id,Number(quantitySelect.value));
   });
 }
-        list.addEventListener('click',event=>{
-  const infoButton=event.target.closest('.grocery-info-button');
+if(!list.dataset.infoWired){
+  list.dataset.infoWired='1';
 
-  if(infoButton){
-    event.preventDefault();
-    event.stopPropagation();
-    showGroceryInfo(infoButton.dataset.groceryInfoId);
-  }
-});
+  list.addEventListener('click',event=>{
+    const infoButton=event.target.closest('.grocery-info-button');
+
+    if(infoButton){
+      event.preventDefault();
+      event.stopPropagation();
+      showGroceryInfo(infoButton.dataset.groceryInfoId);
+    }
+  });
+}
         list.innerHTML=''; const stores=new Map(); groceryItems.forEach(item=>{if(!stores.has(item.store_id))stores.set(item.store_id,[]);stores.get(item.store_id).push(item);});
         [...stores.keys()].sort((a,b)=>{const an=storeNames.get(a)||'',bn=storeNames.get(b)||'',order={Walmart:0,Costco:1};return(order[an]??99)-(order[bn]??99)||an.localeCompare(bn);}).forEach(storeId=>{
           const title=doc.createElement('li');title.className='master-section';title.textContent=storeNames.get(storeId)||'Store';list.append(title);
