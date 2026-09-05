@@ -84,21 +84,7 @@
     .map(row => [row.grocery_item_id, Number(row.quantity) || 1])
 );
       }
-      function updateStoreEstimatedBills(doc){
-  doc.querySelectorAll('[data-store-total]').forEach(totalElement=>{
-    const storeId=String(totalElement.dataset.storeTotal);
-    let total=0;
-    groceryItems.forEach(item=>{
-      if(String(item.store_id)!==storeId||!checklist.has(item.id))return;
-      const price=Number(item.price);
-      if(!Number.isFinite(price))return;
-      const quantity=Number(itemQuantities.get(item.id)||1);
-      const taxable=String(item.tax??'').trim().toUpperCase()==='Y';
-      total+=price*quantity*(taxable?1.0825:1);
-    });
-    totalElement.textContent=`${total.toFixed(2)}`;
-  });
-}
+      
       
       function buildMasterList(doc){
         const list=doc.querySelector('#master-list'); if(!list)return;
