@@ -278,23 +278,29 @@ if(!list.dataset.infoWired){
             .filter(item=>item.store_id===storeId)
             .sort((a,b)=>a.sort_order-b.sort_order);
 
-          let currentSection=null;
+          const itemsBySection=new Map();
 
           storeItems.forEach(item=>{
-            const section=item.section_name||null;
+            const section=(item.section_name||'').trim();
+            if(!itemsBySection.has(section))itemsBySection.set(section,[]);
+            itemsBySection.get(section).push(item);
+          });
 
-            if(section!==currentSection){
-              if(section){
-                const sectionTitle=doc.createElement('li');
-                sectionTitle.className='master-subsection';
-                sectionTitle.textContent=section;
-                list.append(sectionTitle);
-              }
+          const sections=[...itemsBySection.keys()].sort((a,b)=>{
+            const aIsMindy=a.toLowerCase()==='mindy';
+            const bIsMindy=b.toLowerCase()==='mindy';
+            return aIsMindy===bIsMindy?0:(aIsMindy?1:-1);
+          });
 
-              currentSection=section;
+          sections.forEach(section=>{
+            if(section){
+              const sectionTitle=doc.createElement('li');
+              sectionTitle.className='master-subsection';
+              sectionTitle.textContent=section;
+              list.append(sectionTitle);
             }
 
-            list.append(row(item));
+            itemsBySection.get(section).forEach(item=>list.append(row(item)));
           });
         });
 
