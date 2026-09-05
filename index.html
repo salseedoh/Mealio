@@ -84,27 +84,7 @@
     .map(row => [row.grocery_item_id, Number(row.quantity) || 1])
 );
       }
-      function updateEstimatedBill(doc){
-  const totalElement=doc.querySelector('#estimated-grocery-total');
-  if(!totalElement)return;
-
-  let total=0;
-
-  groceryItems.forEach(item=>{
-    if(!checklist.has(item.id))return;
-
-    const price=Number(item.price);
-    if(!Number.isFinite(price))return;
-
-    const quantity=Number(itemQuantities.get(item.id)||1);
-    const taxable=String(item.tax??'').trim().toUpperCase()==='Y';
-
-    const itemTotal=price*quantity*(taxable?1.0825:1);
-    total+=itemTotal;
-  });
-
-  totalElement.textContent=`$${total.toFixed(2)}`;
-}
+      
       
       function buildMasterList(doc){
         const list=doc.querySelector('#master-list'); if(!list)return;
@@ -246,7 +226,7 @@ quantitySelect.addEventListener('change',async ()=>{
     return;
   }
 
-  updateEstimatedBill(doc);
+  updateStoreEstimatedBills(doc);
 });
 }
 if(!list.dataset.infoWired){
@@ -272,7 +252,22 @@ if(!list.dataset.infoWired){
           const title=doc.createElement('li');
           title.className='master-section';
           title.textContent=storeNames.get(storeId)||'Store';
-          list.append(title);
+
+          const controls=doc.createElement('li');
+          controls.className='master-store-controls';
+
+          const bill=doc.createElement('div');
+          bill.className='estimated-bill';
+          bill.innerHTML='<span class="estimated-bill-label">ESTIMATED GROCERY BILL</span><span class="estimated-bill-total" data-store-total="'+String(storeId)+'">$0.00</span>';
+
+          const clearButton=doc.createElement('button');
+          clearButton.type='button';
+          clearButton.className='master-clear';
+          clearButton.textContent='Clear all checks';
+          clearButton.addEventListener('click',()=>clearChecks(storeId));
+
+          controls.append(bill,clearButton);
+          list.append(title,controls);
 
           const storeItems=(children.get(0)||[])
             .filter(item=>item.store_id===storeId)
@@ -304,31 +299,23 @@ if(!list.dataset.infoWired){
           });
         });
 
-        updateEstimatedBill(doc);
+        updateStoreEstimatedBills(doc);
       }
 
-function updateEstimatedBill(doc){
-  const totalElement = doc.querySelector('#estimated-grocery-total');
-  if(!totalElement) return;
-
-  let total = 0;
-
-  groceryItems.forEach(item => {
-    if(!checklist.has(item.id)) return;
-    if(item.price === null || item.price === undefined || item.price === '') return;
-
-    const price = Number(item.price);
-    if(!Number.isFinite(price)) return;
-
-    const quantity = itemQuantities.get(item.id) || 1;
-    const taxable = String(item.tax || '').trim().toUpperCase() === 'Y';
-
-    const itemTotal = price * quantity * (taxable ? 1.0825 : 1);
-
-    total += itemTotal;
+function updateStoreEstimatedBills(doc){
+  doc.querySelectorAll('[data-store-total]').forEach(totalElement=>{
+    const storeId=String(totalElement.dataset.storeTotal);
+    let total=0;
+    groceryItems.forEach(item=>{
+      if(String(item.store_id)!==storeId||!checklist.has(item.id))return;
+      const price=Number(item.price);
+      if(!Number.isFinite(price))return;
+      const quantity=Number(itemQuantities.get(item.id)||1);
+      const taxable=String(item.tax??'').trim().toUpperCase()==='Y';
+      total+=price*quantity*(taxable?1.0825:1);
+    });
+    totalElement.textContent=`${total.toFixed(2)}`;
   });
-
-  totalElement.textContent = `$${total.toFixed(2)}`;
 }
 
 async function setChecked(itemId,checked){
@@ -360,12 +347,30 @@ async function setChecked(itemId,checked){
     showSaveError();
   }
 }
-      async function clearChecks(){const {error}=await supabase.from('grocery_checklist').update({checked:false,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('checked',true);if(error){console.error('Clear checklist failed:',error);showSaveError();return;}checklist.clear();buildMasterList(frameDoc());}
-      function ensureFrameStructure(doc){const root=doc.querySelector('#gather-recipes');if(!root)return;let extra=doc.querySelector('#gr-extra');if(!extra){extra=doc.createElement('div');extra.id='gr-extra';}root.prepend(extra);extra.innerHTML='<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head"><div><p class="eyebrow">MASTER SHOPPING LIST</p><h2>Grocery Checklist</h2><p>Items stay unchecked until you select them or add a recipe.</p></div><div class="master-head-right"><div class="estimated-bill"><span class="estimated-bill-label">ESTIMATED GROCERY BILL</span><span class="estimated-bill-total" id="estimated-grocery-total">$0.00</span></div><button class="master-clear" id="master-clear">Clear all checks</button></div></div><ul class="master-list" id="master-list"></ul></section>';const showList=()=>{root.classList.add('list-view');doc.querySelector('#gr-show-list')?.classList.add('active');doc.querySelector('#gr-show-recipes')?.classList.remove('active');};const showRecipes=()=>{root.classList.remove('list-view');doc.querySelector('#gr-show-recipes')?.classList.add('active');doc.querySelector('#gr-show-list')?.classList.remove('active');};doc.querySelector('#gr-show-list').onclick=showList;doc.querySelector('#gr-show-recipes').onclick=showRecipes;const close=doc.querySelector('.gr-close');if(close&&!close.dataset.parentWired){close.dataset.parentWired='1';close.addEventListener('click',()=>doc.querySelector('#gr-dialog')?.close());}showList();}
+      async function clearChecks(storeId){
+  const itemIds=groceryItems.filter(item=>String(item.store_id)===String(storeId)&&checklist.has(item.id)).map(item=>item.id);
+  if(!itemIds.length)return;
+
+  const {error}=await supabase.from('grocery_checklist')
+    .update({checked:false,updated_at:new Date().toISOString()})
+    .eq('user_id',session.user.id)
+    .eq('checked',true)
+    .in('grocery_item_id',itemIds);
+
+  if(error){
+    console.error('Clear checklist failed:',error);
+    showSaveError();
+    return;
+  }
+
+  itemIds.forEach(itemId=>checklist.delete(itemId));
+  buildMasterList(frameDoc());
+}
+      function ensureFrameStructure(doc){const root=doc.querySelector('#gather-recipes');if(!root)return;let extra=doc.querySelector('#gr-extra');if(!extra){extra=doc.createElement('div');extra.id='gr-extra';}root.prepend(extra);extra.innerHTML='<nav class="gr-nav"><button class="active" id="gr-show-list">Grocery Checklist</button><button id="gr-show-recipes">Recipes</button></nav><section class="master-view"><div class="master-head"><div><p class="eyebrow">MASTER SHOPPING LIST</p><h2>Grocery Checklist</h2><p>Items stay unchecked until you select them or add a recipe.</p></div></div><ul class="master-list" id="master-list"></ul></section>';const showList=()=>{root.classList.add('list-view');doc.querySelector('#gr-show-list')?.classList.add('active');doc.querySelector('#gr-show-recipes')?.classList.remove('active');};const showRecipes=()=>{root.classList.remove('list-view');doc.querySelector('#gr-show-recipes')?.classList.add('active');doc.querySelector('#gr-show-list')?.classList.remove('active');};doc.querySelector('#gr-show-list').onclick=showList;doc.querySelector('#gr-show-recipes').onclick=showRecipes;const close=doc.querySelector('.gr-close');if(close&&!close.dataset.parentWired){close.dataset.parentWired='1';close.addEventListener('click',()=>doc.querySelector('#gr-dialog')?.close());}showList();}
       function renderRecipeData(doc){const grid=doc.querySelector('#gr-grid');if(!grid)return;grid.innerHTML=recipes.map(recipe=>'<article class="card"><div class="art"><span>'+esc(recipe.emoji||'🍽️')+'</span></div><div class="body"><div class="meta"><b>'+esc((recipe.type||'RECIPE').toUpperCase())+'</b><span>'+esc(recipe.time||'')+'</span></div><h3>'+esc(recipe.title)+'</h3><p class="desc">'+esc(recipe.description||'')+'</p><div class="actions"><button class="view" type="button">View recipe</button><button class="add" type="button">Add to list <span>+</span></button></div></div></article>').join('');}
       function showRecipeFromDatabase(doc,recipe){const dialog=doc.querySelector('#gr-dialog'),detail=doc.querySelector('#gr-detail');if(!dialog||!detail)return;detail.innerHTML=`<p class="gr-kicker">${esc(recipe.type).toUpperCase()} · ${esc(recipe.time)}</p><h2>${esc(recipe.title)}</h2><div class="gr-columns"><section><h4>INGREDIENTS</h4>${recipe.groups.map(group=>`<div class="gr-group"><b>${esc(group.name)}</b><ul>${group.ingredients.map(i=>`<li>${esc([i.quantity,i.ingredient_text].filter(Boolean).join(' '))}</li>`).join('')}</ul></div>`).join('')}</section><section><h4>ASSEMBLY INSTRUCTIONS</h4><ol>${recipe.steps.map(step=>`<li>${esc(step.instruction)}</li>`).join('')}</ol></section></div>`;dialog.showModal();}
       async function addRecipeToMaster(recipe){const ids=recipe.groups.flatMap(group=>group.ingredients).map(i=>i.grocery_item_id).filter(Boolean);await Promise.all([...new Set(ids)].map(id=>setChecked(id,true)));}
-      function wireFrame(){const doc=frameDoc();if(!doc)return;ensureFrameStructure(doc);buildMasterList(doc);renderRecipeData(doc);const clearButton=doc.querySelector('#master-clear');if(clearButton&&!clearButton.dataset.supabaseWired){clearButton.dataset.supabaseWired='1';clearButton.addEventListener('click',clearChecks);}if(!doc.documentElement.dataset.supabaseFrameWired){doc.documentElement.dataset.supabaseFrameWired='1';doc.addEventListener('click',event=>{const viewButton=event.target.closest('.card .view');if(viewButton){const card=viewButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe){event.preventDefault();event.stopImmediatePropagation();showRecipeFromDatabase(doc,recipe);}return;}const addButton=event.target.closest('.card .add');if(addButton){const card=addButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe){event.preventDefault();event.stopImmediatePropagation();addRecipeToMaster(recipe).then(()=>{addButton.innerHTML='Added <span>✓</span>';setTimeout(()=>{addButton.innerHTML='Add to list <span>+</span>';},1300);});}}},true);}}
+      function wireFrame(){const doc=frameDoc();if(!doc)return;ensureFrameStructure(doc);buildMasterList(doc);renderRecipeData(doc);if(!doc.documentElement.dataset.supabaseFrameWired){doc.documentElement.dataset.supabaseFrameWired='1';doc.addEventListener('click',event=>{const viewButton=event.target.closest('.card .view');if(viewButton){const card=viewButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe){event.preventDefault();event.stopImmediatePropagation();showRecipeFromDatabase(doc,recipe);}return;}const addButton=event.target.closest('.card .add');if(addButton){const card=addButton.closest('.card'),title=card?.querySelector('h3')?.textContent,recipe=recipeByTitle.get(title);if(recipe){event.preventDefault();event.stopImmediatePropagation();addRecipeToMaster(recipe).then(()=>{addButton.innerHTML='Added <span>✓</span>';setTimeout(()=>{addButton.innerHTML='Add to list <span>+</span>';},1300);});}}},true);}}
       async function syncApp(){await loadDatabase();wireFrame();}
       async function prepareApp(){if(appSyncPromise)return appSyncPromise;showLoading();appSyncPromise=(async()=>{try{await syncApp();appReady=true;hideAuth();}catch(error){console.error('Gather Supabase sync failed:',error);showAuth('Unable to load your Gather data. Please refresh and try again.');}finally{appSyncPromise=null;}})();return appSyncPromise;}
       app.addEventListener('load',()=>{if(session&&!appReady)prepareApp();});
