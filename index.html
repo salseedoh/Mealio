@@ -155,7 +155,7 @@
   const modal=doc.createElement('div');
   modal.className='grocery-info-modal';
 
-  const priceText=item.price==null||item.price===''?'Not available':`$${Number(item.price).toFixed(2)}`;
+  const priceValue=item.price==null||item.price===''?'':Number(item.price).toFixed(2);
   const notesText=item.notes==null||item.notes.trim()===''?'No notes for this item.':item.notes;
 
   modal.innerHTML=`
@@ -166,8 +166,12 @@
 
     <div class="grocery-info-content">
       <div class="grocery-info-field">
-        <div class="grocery-info-label">PRICE</div>
-        <div class="grocery-info-value">${priceText}</div>
+        <label class="grocery-info-label" for="grocery-price-${item.id}">PRICE</label>
+        <div class="grocery-price-editor">
+          <span aria-hidden="true">$</span>
+          <input id="grocery-price-${item.id}" class="grocery-price-input" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(priceValue)}" placeholder="Not available">
+          <button type="button" class="grocery-price-save">Save price</button>
+        </div>
       </div>
 
       <div class="grocery-info-field">
@@ -198,6 +202,42 @@
 
   overlay.addEventListener('click',event=>{
     if(event.target===overlay)close();
+  });
+
+  const priceInput=modal.querySelector('.grocery-price-input');
+  const priceSaveButton=modal.querySelector('.grocery-price-save');
+
+  priceSaveButton.addEventListener('click',async ()=>{
+    const previousPrice=item.price;
+    const rawPrice=priceInput.value.trim();
+    const price=rawPrice===''?null:Number(rawPrice);
+
+    if(price!==null&&(!Number.isFinite(price)||price<0)){
+      priceInput.focus();
+      return;
+    }
+
+    priceSaveButton.disabled=true;
+    priceSaveButton.textContent='Saving…';
+
+    const {error}=await supabase
+      .from('grocery_items')
+      .update({price,updated_at:new Date().toISOString()})
+      .eq('id',item.id)
+      .eq('user_id',session.user.id);
+
+    if(error){
+      console.error('Price update failed:',error);
+      priceInput.value=previousPrice==null?'':Number(previousPrice).toFixed(2);
+      showSaveError('Couldn’t save the price. Please try again.');
+    }else{
+      item.price=price;
+      updateStoreEstimatedBills(doc);
+      priceSaveButton.textContent='Saved';
+      setTimeout(()=>{priceSaveButton.textContent='Save price';},1200);
+    }
+
+    priceSaveButton.disabled=false;
   });
 
 const quantitySelect=modal.querySelector('.grocery-quantity');
