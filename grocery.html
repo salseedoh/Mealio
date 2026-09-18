@@ -351,6 +351,38 @@ function show(recipe){
     line-height:1.5;
   }
 
+  .grocery-price-editor{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .grocery-price-input{
+    width:110px;
+    padding:7px 10px;
+    border:1px solid #dcd9d0;
+    background:#fff;
+    color:#202521;
+    font-size:14px;
+    border-radius:3px;
+  }
+
+  .grocery-price-save{
+    border:0;
+    background:#46604c;
+    color:#fff;
+    border-radius:3px;
+    padding:8px 10px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+  }
+
+  .grocery-price-save:disabled{
+    cursor:wait;
+    opacity:.7;
+  }
+
   .grocery-quantity{
     min-width:70px;
     padding:7px 10px;
