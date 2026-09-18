@@ -214,6 +214,7 @@
 
     if(price!==null&&(!Number.isFinite(price)||price<0)){
       priceInput.focus();
+      showSaveError('Enter a valid non-negative price.');
       return;
     }
 
