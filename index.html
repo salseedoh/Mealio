@@ -156,7 +156,6 @@
   modal.className='grocery-info-modal';
 
   const priceValue=item.price==null||item.price===''?'':Number(item.price).toFixed(2);
-  const notesText=item.notes==null||item.notes.trim()===''?'No notes for this item.':item.notes;
 
   modal.innerHTML=`
     <div class="grocery-info-header">
