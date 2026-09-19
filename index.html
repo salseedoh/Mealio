@@ -182,7 +182,7 @@
       <div class="grocery-info-field">
         <label class="grocery-info-label" for="grocery-quantity-${item.id}">QUANTITY</label>
         <div class="grocery-quantity-editor">
-          <input id="grocery-quantity-${item.id}" class="grocery-quantity-input" type="number" min="1" step="1" inputmode="numeric" value="${quantity}">
+          <input id="grocery-quantity-${item.id}" class="grocery-quantity-input" type="number" min="0.001" step="0.001" inputmode="decimal" value="${quantity}">
           <button type="button" class="grocery-quantity-save">Save quantity</button>
         </div>
       </div>
@@ -275,9 +275,9 @@
     const previousQuantity=itemQuantities.get(item.id)||1;
     const quantity=Number(quantityInput.value);
 
-    if(!Number.isInteger(quantity)||quantity<1){
+    if(!Number.isFinite(quantity)||quantity<=0){
       quantityInput.focus();
-      showSaveError('Enter a whole quantity of 1 or more.');
+      showSaveError('Enter a quantity greater than zero.');
       return;
     }
 
