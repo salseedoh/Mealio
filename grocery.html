@@ -378,9 +378,57 @@ function show(recipe){
     cursor:pointer;
   }
 
-  .grocery-price-save:disabled{
+  .grocery-price-save:disabled,
+  .grocery-notes-save:disabled,
+  .grocery-quantity-save:disabled{
     cursor:wait;
     opacity:.7;
+  }
+
+  .grocery-notes-input{
+    display:block;
+    width:100%;
+    min-height:82px;
+    resize:vertical;
+    padding:8px 10px;
+    border:1px solid #dcd9d0;
+    background:#fff;
+    color:#202521;
+    font:14px/1.4 'DM Sans',Arial,sans-serif;
+    border-radius:3px;
+  }
+
+  .grocery-notes-save,
+  .grocery-quantity-save{
+    margin-top:8px;
+    border:0;
+    background:#46604c;
+    color:#fff;
+    border-radius:3px;
+    padding:8px 10px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+  }
+
+  .grocery-quantity-editor{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .grocery-quantity-input{
+    width:88px;
+    padding:7px 10px;
+    border:1px solid #dcd9d0;
+    background:#fff;
+    color:#202521;
+    font-size:14px;
+    border-radius:3px;
+  }
+
+  .grocery-quantity-editor .grocery-quantity-save{
+    margin-top:0;
   }
 
   .grocery-quantity{

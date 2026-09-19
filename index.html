@@ -156,7 +156,6 @@
   modal.className='grocery-info-modal';
 
   const priceValue=item.price==null||item.price===''?'':Number(item.price).toFixed(2);
-  const notesText=item.notes==null||item.notes.trim()===''?'No notes for this item.':item.notes;
 
   modal.innerHTML=`
     <div class="grocery-info-header">
@@ -175,18 +174,17 @@
       </div>
 
       <div class="grocery-info-field">
-        <div class="grocery-info-label">NOTES</div>
-        <div class="grocery-info-value">${esc(notesText)}</div>
+        <label class="grocery-info-label" for="grocery-notes-${item.id}">NOTES</label>
+        <textarea id="grocery-notes-${item.id}" class="grocery-notes-input" placeholder="Add notes for this item">${esc(item.notes??'')}</textarea>
+        <button type="button" class="grocery-notes-save">Save notes</button>
       </div>
 
       <div class="grocery-info-field">
         <label class="grocery-info-label" for="grocery-quantity-${item.id}">QUANTITY</label>
-        <select id="grocery-quantity-${item.id}" class="grocery-quantity">
-          ${Array.from({length:10},(_,index)=>{
-            const value=index+1;
-            return `<option value="${value}" ${value===quantity?'selected':''}>${value}</option>`;
-          }).join('')}
-        </select>
+        <div class="grocery-quantity-editor">
+          <input id="grocery-quantity-${item.id}" class="grocery-quantity-input" type="number" min="1" step="1" inputmode="numeric" value="${quantity}">
+          <button type="button" class="grocery-quantity-save">Save quantity</button>
+        </div>
       </div>
     </div>
   `;
@@ -241,34 +239,74 @@
     priceSaveButton.disabled=false;
   });
 
-const quantitySelect=modal.querySelector('.grocery-quantity');
+  const notesInput=modal.querySelector('.grocery-notes-input');
+  const notesSaveButton=modal.querySelector('.grocery-notes-save');
 
-quantitySelect.addEventListener('change',async ()=>{
-  const previousQuantity=itemQuantities.get(item.id)||1;
-  const quantity=Number(quantitySelect.value)||1;
+  notesSaveButton.addEventListener('click',async ()=>{
+    const previousNotes=item.notes;
+    const notes=notesInput.value.trim()||null;
 
-  itemQuantities.set(item.id,quantity);
+    notesSaveButton.disabled=true;
+    notesSaveButton.textContent='Saving…';
 
-  const {error}=await supabase
-    .from('grocery_checklist')
-    .upsert({
-      user_id:session.user.id,
-      grocery_item_id:item.id,
-      checked:checklist.has(item.id),
-      quantity,
-      updated_at:new Date().toISOString()
-    },{onConflict:'user_id,grocery_item_id'});
+    const {error}=await supabase
+      .from('grocery_items')
+      .update({notes,updated_at:new Date().toISOString()})
+      .eq('id',item.id)
+      .eq('user_id',session.user.id);
 
-  if(error){
-    console.error('Quantity update failed:',error);
-    itemQuantities.set(item.id,previousQuantity);
-    quantitySelect.value=String(previousQuantity);
-    showSaveError();
-    return;
-  }
+    if(error){
+      console.error('Notes update failed:',error);
+      notesInput.value=previousNotes??'';
+      showSaveError('Couldn’t save the notes. Please try again.');
+    }else{
+      item.notes=notes;
+      notesSaveButton.textContent='Saved';
+      setTimeout(()=>{notesSaveButton.textContent='Save notes';},1200);
+    }
 
-  updateStoreEstimatedBills(doc);
-});
+    notesSaveButton.disabled=false;
+  });
+
+  const quantityInput=modal.querySelector('.grocery-quantity-input');
+  const quantitySaveButton=modal.querySelector('.grocery-quantity-save');
+
+  quantitySaveButton.addEventListener('click',async ()=>{
+    const previousQuantity=itemQuantities.get(item.id)||1;
+    const quantity=Number(quantityInput.value);
+
+    if(!Number.isInteger(quantity)||quantity<1){
+      quantityInput.focus();
+      showSaveError('Enter a whole quantity of 1 or more.');
+      return;
+    }
+
+    quantitySaveButton.disabled=true;
+    quantitySaveButton.textContent='Saving…';
+
+    const {error}=await supabase
+      .from('grocery_checklist')
+      .upsert({
+        user_id:session.user.id,
+        grocery_item_id:item.id,
+        checked:checklist.has(item.id),
+        quantity,
+        updated_at:new Date().toISOString()
+      },{onConflict:'user_id,grocery_item_id'});
+
+    if(error){
+      console.error('Quantity update failed:',error);
+      quantityInput.value=String(previousQuantity);
+      showSaveError('Couldn’t save the quantity. Please try again.');
+    }else{
+      itemQuantities.set(item.id,quantity);
+      updateStoreEstimatedBills(doc);
+      quantitySaveButton.textContent='Saved';
+      setTimeout(()=>{quantitySaveButton.textContent='Save quantity';},1200);
+    }
+
+    quantitySaveButton.disabled=false;
+  });
 }
 if(!list.dataset.infoWired){
   list.dataset.infoWired='1';
