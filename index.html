@@ -107,6 +107,25 @@
 
   span.textContent=item.name;
 
+  const quantityLabel=doc.createElement('strong');
+  quantityLabel.className='grocery-item-quantity';
+
+  const lineTotal=doc.createElement('strong');
+  lineTotal.className='grocery-line-total';
+
+  if(input.checked){
+    const quantity=Number(itemQuantities.get(item.id)||1);
+    const displayQuantity=Number.isFinite(quantity)&&quantity>0?String(quantity):'1';
+    quantityLabel.textContent=`x${displayQuantity}`;
+
+    const price=Number(item.price);
+    if(Number.isFinite(price)){
+      const taxable=String(item.tax??'').trim().toUpperCase()==='Y';
+      const total=price*quantity*(taxable?1.0825:1);
+      lineTotal.textContent=`${total.toFixed(2)}`;
+    }
+  }
+
   infoButton.type='button';
   infoButton.className='grocery-info-button';
   infoButton.setAttribute('aria-label',`View information for ${item.name}`);
@@ -118,7 +137,9 @@
   infoButton.append(infoIcon);
 
   label.append(input,span);
-  li.append(label,infoButton);
+  if(input.checked)label.append(quantityLabel);
+  if(lineTotal.textContent)li.append(label,lineTotal,infoButton);
+  else li.append(label,infoButton);
 
   if(input.checked)li.classList.add('checked');
 
@@ -171,6 +192,13 @@
           <input id="grocery-price-${item.id}" class="grocery-price-input" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(priceValue)}" placeholder="Not available">
           <button type="button" class="grocery-price-save">Save price</button>
         </div>
+      </div>
+
+      <div class="grocery-info-field">
+        <label class="grocery-taxable-editor">
+          <input type="checkbox" class="grocery-taxable-input" ${String(item.tax??'').trim().toUpperCase()==='Y'?'checked':''}>
+          <span>Taxable</span>
+        </label>
       </div>
 
       <div class="grocery-info-field">
@@ -237,6 +265,33 @@
     }
 
     priceSaveButton.disabled=false;
+  });
+
+  const taxableInput=modal.querySelector('.grocery-taxable-input');
+
+  taxableInput.addEventListener('change',async ()=>{
+    const previousTax=item.tax;
+    const tax=taxableInput.checked?'Y':'N';
+    taxableInput.disabled=true;
+
+    const {error}=await supabase
+      .from('grocery_items')
+      .update({tax,updated_at:new Date().toISOString()})
+      .eq('id',item.id)
+      .eq('user_id',session.user.id);
+
+    if(error){
+      console.error('Tax update failed:',error);
+      item.tax=previousTax;
+      taxableInput.checked=String(previousTax??'').trim().toUpperCase()==='Y';
+      showSaveError('Couldn’t save the taxable setting. Please try again.');
+    }else{
+      item.tax=tax;
+      updateStoreEstimatedBills(doc);
+      buildMasterList(doc);
+    }
+
+    taxableInput.disabled=false;
   });
 
   const notesInput=modal.querySelector('.grocery-notes-input');
